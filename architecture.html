@@ -1,0 +1,654 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>中国电信 10000 号 · 私有化信创 AI 语音对话端到端架构方案（V2 修订版）</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: "Microsoft YaHei", "PingFang SC", "Helvetica Neue", sans-serif;
+    background: #0f1729; color: #e2e8f0; line-height: 1.8; padding: 30px 20px; font-size: 14.5px;
+  }
+  .wrap { max-width: 1280px; margin: 0 auto; }
+  header { text-align: center; margin-bottom: 34px; }
+  header h1 { font-size: 28px; color: #38bdf8; font-weight: 700; margin-bottom: 10px; }
+  header .sub { color: #94a3b8; font-size: 13.5px; }
+  header .tagline {
+    display: inline-block; margin-top: 14px; padding: 10px 22px;
+    background: #1e3a5f; border: 1px solid #38bdf8; border-radius: 24px;
+    color: #7dd3fc; font-size: 13.5px;
+  }
+  .toc {
+    background: #131c31; border: 1px solid #334155; border-radius: 12px;
+    padding: 18px 24px; margin-bottom: 38px;
+  }
+  .toc h3 { color: #fbbf24; font-size: 15px; margin-bottom: 10px; }
+  .toc ul { list-style: none; columns: 2; column-gap: 34px; }
+  .toc li { font-size: 13px; padding: 3px 0; break-inside: avoid; }
+  .toc li a { color: #cbd5e1; text-decoration: none; }
+  .toc li a:hover { color: #38bdf8; }
+  .toc .toc-h3 a { color: #94a3b8; padding-left: 14px; font-size: 12.5px; }
+  h1 { font-size: 27px; color: #38bdf8; margin: 46px 0 14px; }
+  h2 {
+    font-size: 21px; color: #fbbf24; margin: 42px 0 14px;
+    padding-left: 12px; border-left: 4px solid #fbbf24;
+  }
+  h3 { font-size: 16px; color: #7dd3fc; margin: 26px 0 10px; }
+  h4 { font-size: 14.5px; color: #5eead4; margin: 18px 0 8px; }
+  p { margin: 10px 0; }
+  .hl { color: #38bdf8; font-weight: 600; }
+  .cite { color: #67e8f9; font-size: 11.5px; }
+  a { color: #7dd3fc; }
+  code {
+    font-family: "SFMono-Regular", Consolas, monospace; font-size: 12.8px;
+    background: #0b1220; padding: 2px 6px; border-radius: 4px; color: #93c5fd;
+  }
+  pre {
+    background: #0b1220; border: 1px solid #1e293b; border-radius: 8px;
+    padding: 16px 18px; overflow-x: auto; margin: 14px 0;
+  }
+  pre code { background: none; padding: 0; color: #cbd5e1; font-size: 12.8px; }
+  blockquote {
+    margin: 12px 0; padding: 10px 16px; background: #0f2b46;
+    border-left: 3px solid #38bdf8; border-radius: 6px; color: #bae6fd; font-size: 13.5px;
+  }
+  blockquote p { margin: 4px 0; }
+  .table-wrap { overflow-x: auto; margin: 14px 0; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; background: #131c31; border-radius: 8px; }
+  th { background: #1e3a5f; color: #7dd3fc; padding: 10px 12px; text-align: left; font-weight: 600; }
+  td { padding: 9px 12px; border-top: 1px solid #1e293b; color: #cbd5e1; vertical-align: top; }
+  tr:hover td { background: #1a2540; }
+  ol.lst { margin: 10px 0 10px 22px; }
+  ol.lst li { margin: 6px 0; }
+  .mermaid-wrap {
+    background: #131c31; border: 1px solid #334155; border-radius: 10px;
+    padding: 18px 16px; margin: 16px 0 8px; overflow-x: auto;
+  }
+  .mermaid { color: #cbd5e1; font-size: 13px; }
+  .figcap { font-size: 12px; color: #64748b; margin-bottom: 8px; }
+  .footer {
+    text-align: center; color: #64748b; font-size: 12px;
+    margin-top: 50px; padding-top: 20px; border-top: 1px solid #1e293b;
+  }
+  @media (max-width: 900px) { .toc ul { columns: 1; } }
+  @media print { body { background: #fff; color: #111; } th { background: #e2e8f0; color: #0f172a; } }
+</style>
+
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>中国电信 10000 号 · 私有化信创 AI 语音对话端到端架构方案</h1>
+    <div class="sub">V2 修订版（架构评审修正）· 日均千万级 API 调用口径 · 端到端 P95 &lt; 1.5s · 全栈信创私有化</div>
+    <div class="tagline">Pipecat frame 级流式编排 + FunASR + Qwen3-TTS/CosyVoice3 TTS 三引擎 + 私有 Qwen3 分层推理 + 自研决策路由</div>
+  </header>
+
+  <div class="toc">
+    <h3>目录</h3>
+    <ul>
+<li class="toc-h2"><a href="#s1">摘要</a></li>
+<li class="toc-h2"><a href="#s2">0. 需求口径与容量基线定义</a></li>
+<li class="toc-h2"><a href="#s3">1. 总体架构</a></li>
+<li class="toc-h2"><a href="#s4">2. 延迟预算拆解：1.5 秒怎么来的</a></li>
+<li class="toc-h3"><a href="#s5">WebRTC 预算（目标：P50 800 / P95 1350 / P99 2200 ms）</a></li>
+<li class="toc-h3"><a href="#s6">SIP 预算（目标：P50 1050 / P95 1500 / P99 2400 ms）</a></li>
+<li class="toc-h2"><a href="#s7">3. 容量模型与资源估算</a></li>
+<li class="toc-h3"><a href="#s8">会话并发 → 模型并发换算（占空比模型）</a></li>
+<li class="toc-h3"><a href="#s9">100 万 DAU 基线资源表</a></li>
+<li class="toc-h3"><a href="#s10">1000 万 DAU 扩容档（水平分片，不做垂直堆卡）</a></li>
+<li class="toc-h2"><a href="#s11">4. 全双工与打断设计</a></li>
+<li class="toc-h2"><a href="#s12">5. 决策路由层（Microsoft-Decision-1 范式落地）</a></li>
+<li class="toc-h2"><a href="#s13">6. 信创适配专项</a></li>
+<li class="toc-h2"><a href="#s14">7. 高可用与弹性伸缩</a></li>
+<li class="toc-h2"><a href="#s15">8. 可观测性与告警</a></li>
+<li class="toc-h2"><a href="#s16">9. 技术选型对比与决策矩阵</a></li>
+<li class="toc-h3"><a href="#s17">ASR：FunASR 胜出，Qwen3-ASR 作双引擎</a></li>
+<li class="toc-h3"><a href="#s18">编排：Pipecat 主选，HF speech-to-speech 作参考实现</a></li>
+<li class="toc-h3"><a href="#s19">全双工底座：级联为主 + 实时语音大模型第一梯队跟踪</a></li>
+<li class="toc-h3"><a href="#s19b">实时语音大模型第一梯队（2026-10 更新）</a></li>
+<li class="toc-h3"><a href="#s19b2">决策头上车：Qwen-Audio-Jev 对决策路由层的意义</a></li>
+<li class="toc-h3"><a href="#s19c">闭源商用 API 的边界：Grok Voice 3.0 一类不入选</a></li>
+<li class="toc-h3"><a href="#s20">TTS：Qwen3-TTS 主选，CosyVoice 3.0 方言/离线专线，MOSS-Nano 兜底，AuK/VibeVoice 不作生产主用</a></li>
+<li class="toc-h3"><a href="#s21">TTS 三引擎落地拓扑：在线主链路 / 方言专线 / 离线预合成 / CPU 兜底</a></li>
+<li class="toc-h3"><a href="#s21b">TTS 风格控制接口：结构化控制量（z-score 范式）</a></li>
+<li class="toc-h3"><a href="#s22">Agent 编排：自研持久化层 + Temporal 参考，ax 等声明式框架暂不入生产</a></li>
+<li class="toc-h2"><a href="#s23">10. 落地路线图</a></li>
+<li class="toc-h3"><a href="#s24">POC（第 1–6 周）</a></li>
+<li class="toc-h3"><a href="#s25">试点（第 2–4 月）</a></li>
+<li class="toc-h3"><a href="#s26">灰度（第 4–10 月）</a></li>
+<li class="toc-h3"><a href="#s27">全量（第 10–12 月）</a></li>
+<li class="toc-h2"><a href="#s28">11. 成本估算（TCO）</a></li>
+<li class="toc-h2"><a href="#s29">12. 风险清单与应对</a></li>
+<li class="toc-h2"><a href="#s30">13. 一页纸摘要</a></li>
+<li class="toc-h2"><a href="#s31">引用来源</a></li>
+    </ul>
+  </div>
+
+<h1 id="s0">中国电信 10000 号私有化信创 AI 语音对话端到端架构方案</h1>
+<h2 id="s1">摘要</h2>
+<p>本方案的需求口径为<strong class="hl">日均千万级 API 调用</strong>（累计调用量，非每秒请求数），据此推导的可立项工程口径为<strong class="hl">峰值约 750 等效 QPS、百万级 DAU</strong>。按 100 万 DAU、人均 3 次通话、单次 90 秒估算，日均 AI 调用约 165 万次，峰值并发会话约 7365 路；按每路 90 秒约 6 轮、每 15 秒一次请求折算，峰值请求压力约 491 QPS，叠加 50% 冗余后规划口径取 <strong class="hl">750 QPS</strong>（推导见 §0）。行业参照可信：中国电信已公开万号试点日均处理约 200 万通电话、翼声平台日均 125 万通（公开报道口径），说明百万 DAU 的真实压力落在万级并发而非千万级瞬时请求<span class="cite">[5]</span><span class="cite">[11]</span>。</p>
+<p>架构主推 <strong class="hl">Pipecat（frame 级编排，原生 SIP/WebRTC）+ FunASR 流式 Paraformer + Qwen3-TTS/CosyVoice3 双引擎 TTS + 私有 Qwen3 分层推理 + 自研决策/持久化层</strong>，SIP 与 WebRTC 各做一套预算：WebRTC 目标 P50 800 ms / P95 1350 ms / P99 2200 ms，SIP 目标 P50 1050 ms / P95 1500 ms / P99 2400 ms。100 万 DAU 基线采用鲲鹏/海光 CPU 大规模媒体池 + 昇腾 NPU 峰谷弹性 + 达梦双库（ASR 与 TTS 以 CPU 为主、昇腾为峰谷兜底，LLM 是主要算力消费者）；具体容量与成本数字涉及商务口径，开源版从略。方案不把估算当实测，所有吞吐与成本均为架构估算或 POC 目标值，须在 POC 阶段用真实电信语料回灌标定。TTS 采用<strong class="hl">在线主用 Qwen3-TTS + 方言/离线专线 CosyVoice 3.0 + CPU 兜底 MOSS-Nano</strong>的三引擎拓扑（详见 §9）：CosyVoice 3.0 的 18 种以上中文方言覆盖补齐方言客群，其固定话术离线预合成让高频话术做到零推理时延<span class="cite">[24]</span>。</p>
+<h2 id="s2">0. 需求口径与容量基线定义</h2>
+<p><strong class="hl">需求口径是"日均千万级 API 调用"，衡量的是累计调用量而非每秒请求数。</strong> 前者是累计调用量，衡量业务体量；后者是每秒请求数，衡量瞬时到达率。语音对话是长连接、长会话业务：一次通话持续数十秒到数分钟，期间音频帧持续流入，既不能把每一帧算作一次 API 调用，也不能把"日调用量"直接等同于"每秒请求数"。语音系统的真正承重指标是<strong class="hl">并发会话数（Concurrent Sessions）× 每路媒体带宽</strong>；从调用量到接入侧 QPS 的换算链条是：日均 API 调用 → DAU → 人均日通话 → 通话时长 → 并发会话 → 请求到达率。因此本方案把需求口径明确为<strong class="hl">日均千万级 API 调用</strong>，再据此推导可立项的工程口径（并发会话、峰值 QPS、算力与带宽）。</p>
+<p><strong class="hl">容量数学：从日均千万级 API 调用推导工程口径。</strong> 取基准假设：DAU 100 万、日活跃率 100%、人均 3 次 AI 通话、每次平均 90 秒、通话集中在 14 小时（50400 秒）、峰值系数为平均值的 2.5 倍（早晚高峰 + 故障报修突发）、AI 自助承接率 55%。日均 AI 调用 = 100 万 × 3 × 55% = 165 万次，属于"日均百万级 API 调用"量级；"日均千万级 API 调用"对应约 600 万 DAU，属扩容档（见下表的 1000 万 DAU 列）。平均并发 = 165 万 × 90 ÷ 50400 ≈ 2946 路，峰值并发 ≈ 2946 × 2.5 ≈ 7365 路。</p>
+<p>再把"并发会话"换算成"请求 QPS"：每路 90 秒通话约 6 轮交互，即每 15 秒产生一次 LLM 请求，峰值请求压力 ≈ 7365 ÷ 15 ≈ <strong class="hl">491 QPS</strong>，考虑转人工分支、工具重试、音频帧心跳后取 <strong class="hl">500 QPS</strong>，加 50% 工程冗余得到立项规划值 <strong class="hl">750 QPS</strong>。这是会话层等效 QPS，不是音频帧率。</p>
+<div class="table-wrap"><table><tr><th>指标</th><th>公式</th><th>100 万 DAU 基线</th><th>1000 万 DAU 扩容档</th></tr><tr><td>日 AI 通话量</td><td>DAU × 3 × 55%</td><td>165 万次</td><td>1650 万次</td></tr><tr><td>平均并发会话（14h 窗口）</td><td>日量 × 90s ÷ 50400</td><td>2946 路</td><td>29464 路</td></tr><tr><td>峰值并发会话</td><td>平均 × 2.5（高峰集中）</td><td>7365 路</td><td>73650 路</td></tr><tr><td>等效请求 QPS</td><td>峰值 ÷ 15s（轮次间隔）</td><td>491</td><td>4910</td></tr><tr><td><strong class="hl">规划口径（含 50% 冗余）</strong></td><td>—</td><td><strong class="hl">750 QPS</strong></td><td><strong class="hl">7500 QPS</strong></td></tr><tr><td>日音频输入量</td><td>165 万 × 90s × 16k × 16bit</td><td>约 400 GB/日</td><td>约 4 TB/日</td></tr></table></div>
+<p><strong class="hl">基准口径：三层指标分离。</strong> 立项 P0 指标定义为：日均千万级 API 调用、峰值 750 等效 QPS、百万级 DAU；架构设计同时给出"峰值 7500 QPS、千万级 DAU"的扩容路径（Region 分片：按省/大区 hash、多 AZ 三副本、媒体网关就近接入、控制面与模型面解耦）。这一口径既尊重"千万"的体量感，又让压测、采购、SLA 可量化。</p>
+<p><strong class="hl">分层 SLA 定义（必须统一口径，否则 P95 1.5s 无从验收）。E2E 起点统一定义为"用户物理说完（声学尾点）"，VAD 确认耗时计入预算。</strong></p>
+<div class="table-wrap"><table><tr><th>指标</th><th>定义起点</th><th>定义终点</th><th>P50 目标</th><th>P95 目标</th><th>P99 目标</th></tr><tr><td>TTFS（首字）</td><td>用户音频尾点</td><td>ASR 首个 final token 到达编排层</td><td>250 ms</td><td>500 ms</td><td>900 ms</td></tr><tr><td>TTFT（首 token）</td><td>最终文本进入 LLM</td><td>LLM 首个输出 token</td><td>180 ms</td><td>350 ms</td><td>600 ms</td></tr><tr><td>TTFB（首音频包）</td><td>TTS 收到首个文本句</td><td>首个可播放音频包离开网关</td><td>120 ms</td><td>250 ms</td><td>400 ms</td></tr><tr><td>E2E（端到端）</td><td>用户物理说完（声学尾点）</td><td>用户听到首音</td><td>800 ms</td><td>1350 ms</td><td>2200 ms</td></tr><tr><td>SIP E2E</td><td>同上</td><td>同上，含承载网</td><td>1050 ms</td><td><strong class="hl">1500 ms</strong></td><td>2400 ms</td></tr></table></div>
+<p>所有时延从媒体网关入口打 <code>mediaTs</code>、ASR 出口打 <code>sttTs</code>、LLM 入口/出口打 <code>llmInTs/llmOutTs</code>、TTS 出口打 <code>ttsOutTs</code>、网关播放打 <code>playTs</code>，全链路以 <code>traceId</code> 贯穿，任何一段超预算即触发根因看板。</p>
+<h2 id="s3">1. 总体架构</h2>
+<p><strong class="hl">架构原则：媒体下沉、模型池化、控制无状态、状态外置、决策独立。</strong> 媒体处理与 AI 模型放在同一个低延迟域内（同机房、同 AZ，RTT &lt; 0.5 ms），禁止跨城调用；接入与编排无状态可水平扩展；会话状态、工单状态、长时任务状态外置到持久化引擎；轻量决策模型与生成式大模型分层部署，避免每条话都烧一次大模型。</p>
+<div class="mermaid-wrap">
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 1230" style="width:100%;height:auto;display:block;" font-family="Microsoft YaHei, PingFang SC, sans-serif">
+  <defs>
+    <marker id="ah1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#7dd3fc"/></marker>
+    <marker id="ah2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#94a3b8"/></marker>
+  </defs>
+  <rect x="0" y="0" width="1200" height="1230" fill="#0d1526"/>
+  <rect x="20" y="20" width="1160" height="86" rx="10" fill="#111c33" stroke="#334155"/>
+  <rect x="20" y="126" width="1160" height="86" rx="10" fill="#111c33" stroke="#334155"/>
+  <rect x="20" y="232" width="1160" height="78" rx="10" fill="#111c33" stroke="#334155"/>
+  <rect x="20" y="330" width="1160" height="180" rx="10" fill="#111c33" stroke="#334155"/>
+  <rect x="20" y="530" width="1160" height="100" rx="10" fill="#111c33" stroke="#334155"/>
+  <rect x="20" y="648" width="1160" height="130" rx="10" fill="#111c33" stroke="#334155"/>
+  <rect x="20" y="798" width="1160" height="86" rx="10" fill="#111c33" stroke="#334155"/>
+  <rect x="20" y="904" width="1160" height="80" rx="10" fill="#111c33" stroke="#334155"/>
+  <rect x="20" y="1004" width="1160" height="112" rx="10" fill="#111c33" stroke="#334155"/>
+  <text x="34" y="44" fill="#fbbf24" font-size="14" font-weight="bold">① 用户侧</text>
+  <text x="34" y="150" fill="#fbbf24" font-size="14" font-weight="bold">② 接入层</text>
+  <text x="34" y="256" fill="#fbbf24" font-size="14" font-weight="bold">③ 媒体网关层</text>
+  <text x="34" y="354" fill="#fbbf24" font-size="14" font-weight="bold">④ 语音 AI 管线（级联：可观测 / 可替换 / 可降级）</text>
+  <text x="34" y="554" fill="#fbbf24" font-size="14" font-weight="bold">⑤ 决策路由层（与编排解耦 · 每轮 1–2 次调用 · 30ms 内）</text>
+  <text x="34" y="672" fill="#fbbf24" font-size="14" font-weight="bold">⑥ Agent 执行与工具层（读多写少 · 幂等优先）</text>
+  <text x="34" y="822" fill="#fbbf24" font-size="14" font-weight="bold">⑦ 数据与知识层（按热度分层）</text>
+  <text x="34" y="928" fill="#fbbf24" font-size="14" font-weight="bold">⑧ 治理层</text>
+  <text x="34" y="1028" fill="#fbbf24" font-size="14" font-weight="bold">⑨ 信创基础设施（全栈国产化 + 国密）</text>
+  <rect x="960" y="132" width="210" height="22" rx="11" fill="#0d1526" stroke="#38bdf8"/>
+  <text x="1065" y="147" fill="#7dd3fc" font-size="11" text-anchor="middle">SIP / WebRTC 双入口</text>
+  <rect x="980" y="244" width="190" height="22" rx="11" fill="#0d1526" stroke="#7dd3fc"/>
+  <text x="1075" y="259" fill="#7dd3fc" font-size="11" text-anchor="middle">峰值 7365 路</text>
+  <rect x="920" y="340" width="250" height="22" rx="11" fill="#0d1526" stroke="#7dd3fc"/>
+  <text x="1045" y="355" fill="#7dd3fc" font-size="11" text-anchor="middle">E2E P95 1.35s（WebRTC）</text>
+  <rect x="1020" y="536" width="150" height="22" rx="11" fill="#0d1526" stroke="#fbbf24"/>
+  <text x="1095" y="551" fill="#fbbf24" font-size="11" text-anchor="middle">P99 ≤ 30ms</text>
+  <rect x="980" y="650" width="180" height="22" rx="11" fill="#0d1526" stroke="#5eead4"/>
+  <text x="1070" y="665" fill="#5eead4" font-size="11" text-anchor="middle">副作用二次确认</text>
+  <rect x="1010" y="800" width="160" height="22" rx="11" fill="#0d1526" stroke="#c084fc"/>
+  <text x="1090" y="815" fill="#c084fc" font-size="11" text-anchor="middle">热 / 温 / 冷分层</text>
+  <rect x="1050" y="906" width="120" height="22" rx="11" fill="#0d1526" stroke="#94a3b8"/>
+  <text x="1110" y="921" fill="#94a3b8" font-size="11" text-anchor="middle">合规留存</text>
+  <rect x="950" y="1010" width="200" height="22" rx="11" fill="#0d1526" stroke="#4ade80"/>
+  <text x="1050" y="1025" fill="#4ade80" font-size="11" text-anchor="middle">70×昇腾 910B + 鲲鹏池</text>
+  <rect x="80" y="52" width="280" height="42" rx="8" fill="#334155" stroke="#94a3b8"/>
+  <text x="220" y="77" fill="#e2e8f0" font-size="13" text-anchor="middle">电话 / PSTN / IMS 用户</text>
+  <rect x="440" y="52" width="280" height="42" rx="8" fill="#334155" stroke="#94a3b8"/>
+  <text x="580" y="77" fill="#e2e8f0" font-size="13" text-anchor="middle">WebRTC 网页</text>
+  <rect x="800" y="52" width="280" height="42" rx="8" fill="#334155" stroke="#94a3b8"/>
+  <text x="940" y="77" fill="#e2e8f0" font-size="13" text-anchor="middle">中国电信 APP</text>
+  <rect x="50" y="158" width="250" height="42" rx="8" fill="#1e3a5f" stroke="#38bdf8"/>
+  <text x="175" y="183" fill="#e2e8f0" font-size="13" text-anchor="middle">SBC / 信令控制</text>
+  <rect x="340" y="158" width="250" height="42" rx="8" fill="#1e3a5f" stroke="#38bdf8"/>
+  <text x="465" y="183" fill="#e2e8f0" font-size="13" text-anchor="middle">IMS 核心网</text>
+  <rect x="630" y="158" width="250" height="42" rx="8" fill="#1e3a5f" stroke="#38bdf8"/>
+  <text x="755" y="183" fill="#e2e8f0" font-size="13" text-anchor="middle">WSS 网关</text>
+  <rect x="920" y="158" width="250" height="42" rx="8" fill="#1e3a5f" stroke="#38bdf8"/>
+  <text x="1045" y="183" fill="#e2e8f0" font-size="13" text-anchor="middle">接入负载均衡</text>
+  <rect x="50" y="264" width="1100" height="36" rx="8" fill="#0f2b46" stroke="#7dd3fc"/>
+  <text x="600" y="286" fill="#e2e8f0" font-size="13" text-anchor="middle">媒体网关集群：SIP ⇄ RTP/Opus 转码 · 降噪 / AEC / 声纹提取 · 过载保护</text>
+  <rect x="50" y="378" width="170" height="64" rx="8" fill="#0f2b46" stroke="#7dd3fc"/>
+  <text x="135" y="404" fill="#e2e8f0" font-size="13" text-anchor="middle">FSMN-VAD</text>
+  <text x="135" y="424" fill="#94a3b8" font-size="12" text-anchor="middle">流式判停</text>
+  <rect x="240" y="378" width="200" height="64" rx="8" fill="#0f2b46" stroke="#7dd3fc"/>
+  <text x="340" y="404" fill="#e2e8f0" font-size="13" text-anchor="middle">FunASR Paraformer</text>
+  <text x="340" y="424" fill="#94a3b8" font-size="12" text-anchor="middle">streaming · INT8</text>
+  <rect x="460" y="378" width="210" height="64" rx="8" fill="#0f2b46" stroke="#7dd3fc"/>
+  <text x="565" y="404" fill="#e2e8f0" font-size="13" text-anchor="middle">Pipecat 编排层</text>
+  <text x="565" y="424" fill="#94a3b8" font-size="12" text-anchor="middle">frame 级流式</text>
+  <rect x="690" y="378" width="210" height="64" rx="8" fill="#0f2b46" stroke="#7dd3fc"/>
+  <text x="795" y="404" fill="#e2e8f0" font-size="13" text-anchor="middle">私有 Qwen3 / 星辰</text>
+  <text x="795" y="424" fill="#94a3b8" font-size="12" text-anchor="middle">前缀缓存 + 投机解码</text>
+  <rect x="920" y="378" width="230" height="64" rx="8" fill="#0f2b46" stroke="#7dd3fc"/>
+  <text x="1035" y="404" fill="#e2e8f0" font-size="13" text-anchor="middle">Qwen3-TTS / CosyVoice3</text>
+  <text x="1035" y="424" fill="#94a3b8" font-size="12" text-anchor="middle">句子级流式</text>
+  <g fill="#64748b" font-size="10.5" text-anchor="middle">
+    <text x="135" y="458">双引擎判停</text>
+    <text x="340" y="458">2430 路并发</text>
+    <text x="565" y="458">无状态 · 水平扩展</text>
+    <text x="795" y="458">1252 并发分层</text>
+    <text x="1035" y="458">1105 流 · RTF 0.3</text>
+  </g>
+  <rect x="460" y="582" width="280" height="42" rx="8" fill="#3b2f0b" stroke="#fbbf24"/>
+  <text x="600" y="607" fill="#fde68a" font-size="12.5" text-anchor="middle">决策模型路由（TinyBERT / BERT-wwm）</text>
+  <rect x="780" y="582" width="370" height="42" rx="8" fill="#3b2f0b" stroke="#fbbf24"/>
+  <text x="965" y="607" fill="#fde68a" font-size="12.5" text-anchor="middle">规则与词表 · 意图/紧急度/归属/护栏（热更新）</text>
+  <rect x="450" y="692" width="270" height="34" rx="8" fill="#042f2e" stroke="#5eead4"/>
+  <text x="585" y="713" fill="#99f6e4" font-size="12.5" text-anchor="middle">Agent 执行层（读多写少 · 幂等优先）</text>
+  <rect x="50" y="742" width="260" height="32" rx="8" fill="#042f2e" stroke="#5eead4"/>
+  <text x="180" y="762" fill="#99f6e4" font-size="12.5" text-anchor="middle">账号 / 余额查询</text>
+  <rect x="325" y="742" width="260" height="32" rx="8" fill="#042f2e" stroke="#5eead4"/>
+  <text x="455" y="762" fill="#99f6e4" font-size="12.5" text-anchor="middle">工单创建 / 闭环</text>
+  <rect x="600" y="742" width="260" height="32" rx="8" fill="#042f2e" stroke="#5eead4"/>
+  <text x="730" y="762" fill="#99f6e4" font-size="12.5" text-anchor="middle">CRM / 计费系统</text>
+  <rect x="875" y="742" width="275" height="32" rx="8" fill="#042f2e" stroke="#5eead4"/>
+  <text x="1012" y="762" fill="#99f6e4" font-size="12.5" text-anchor="middle">坐席转接队列（CTI）</text>
+  <rect x="50" y="846" width="330" height="34" rx="8" fill="#2e1065" stroke="#c084fc"/>
+  <text x="215" y="867" fill="#e9d5ff" font-size="12.5" text-anchor="middle">知识库 / RAG 语料</text>
+  <rect x="410" y="846" width="330" height="34" rx="8" fill="#2e1065" stroke="#c084fc"/>
+  <text x="575" y="867" fill="#e9d5ff" font-size="12.5" text-anchor="middle">向量库（Milvus 国产化）</text>
+  <rect x="790" y="846" width="360" height="34" rx="8" fill="#2e1065" stroke="#c084fc"/>
+  <text x="970" y="867" fill="#e9d5ff" font-size="12.5" text-anchor="middle">Redis 集群（会话 / 热词 / 缓存）</text>
+  <rect x="50" y="950" width="540" height="32" rx="8" fill="#1e293b" stroke="#94a3b8"/>
+  <text x="320" y="970" fill="#cbd5e1" font-size="12.5" text-anchor="middle">可观测：Prometheus + OTel（指标 / 日志 / Trace）</text>
+  <rect x="620" y="950" width="530" height="32" rx="8" fill="#1e293b" stroke="#94a3b8"/>
+  <text x="885" y="970" fill="#cbd5e1" font-size="12.5" text-anchor="middle">审计 / 录音 / 不可篡改日志（合规留存）</text>
+  <rect x="50" y="1052" width="270" height="48" rx="8" fill="#052e16" stroke="#4ade80"/>
+  <text x="185" y="1072" fill="#bbf7d0" font-size="12.5" text-anchor="middle">Kubernetes</text>
+  <text x="185" y="1090" fill="#bbf7d0" font-size="12" text-anchor="middle">国产发行版</text>
+  <rect x="340" y="1052" width="300" height="48" rx="8" fill="#052e16" stroke="#4ade80"/>
+  <text x="490" y="1072" fill="#bbf7d0" font-size="12.5" text-anchor="middle">达梦 DM8 / 人大金仓</text>
+  <text x="490" y="1090" fill="#bbf7d0" font-size="12" text-anchor="middle">主备 + 异地容灾</text>
+  <rect x="660" y="1052" width="240" height="48" rx="8" fill="#052e16" stroke="#4ade80"/>
+  <text x="780" y="1072" fill="#bbf7d0" font-size="12.5" text-anchor="middle">消息中间件</text>
+  <text x="780" y="1090" fill="#bbf7d0" font-size="12" text-anchor="middle">Kafka / 东方通</text>
+  <rect x="920" y="1052" width="230" height="48" rx="8" fill="#052e16" stroke="#4ade80"/>
+  <text x="1035" y="1072" fill="#bbf7d0" font-size="12.5" text-anchor="middle">鲲鹏/海光 · 昇腾 NPU</text>
+  <text x="1035" y="1090" fill="#bbf7d0" font-size="12" text-anchor="middle">麒麟/统信 OS · 国密</text>
+  <g stroke="#7dd3fc" stroke-width="1.6" fill="none">
+    <line x1="220" y1="94" x2="175" y2="158" marker-end="url(#ah1)"/>
+    <line x1="580" y1="94" x2="755" y2="158" marker-end="url(#ah1)"/>
+    <line x1="940" y1="94" x2="800" y2="158" marker-end="url(#ah1)"/>
+    <line x1="300" y1="179" x2="340" y2="179" marker-end="url(#ah1)"/>
+    <line x1="880" y1="179" x2="920" y2="179" marker-end="url(#ah1)"/>
+    <path d="M465,200 V216 H1100 V200" marker-end="url(#ah1)"/>
+    <line x1="1000" y1="200" x2="1000" y2="264" marker-end="url(#ah1)"/>
+    <line x1="135" y1="300" x2="135" y2="378" marker-end="url(#ah1)"/>
+    <line x1="220" y1="410" x2="240" y2="410" marker-end="url(#ah1)"/>
+    <line x1="440" y1="410" x2="460" y2="410" marker-end="url(#ah1)"/>
+    <line x1="670" y1="410" x2="690" y2="410" marker-end="url(#ah1)"/>
+    <line x1="900" y1="410" x2="920" y2="410" marker-end="url(#ah1)"/>
+    <line x1="1035" y1="378" x2="1035" y2="300" marker-end="url(#ah1)"/>
+    <line x1="580" y1="582" x2="580" y2="442" marker-end="url(#ah1)"/>
+    <path d="M660,442 V470 H755 V682 H585 V692" marker-end="url(#ah1)"/>
+    <line x1="740" y1="603" x2="780" y2="603" marker-start="url(#ah1)" marker-end="url(#ah1)"/>
+    <line x1="500" y1="726" x2="180" y2="742" marker-end="url(#ah1)"/>
+    <line x1="540" y1="726" x2="455" y2="742" marker-end="url(#ah1)"/>
+    <line x1="600" y1="726" x2="730" y2="742" marker-end="url(#ah1)"/>
+    <line x1="650" y1="726" x2="1012" y2="742" marker-end="url(#ah1)"/>
+  </g>
+  <g stroke="#94a3b8" stroke-width="1.4" stroke-dasharray="5 4" fill="none">
+    <path d="M215,846 V790 H592 V726" marker-end="url(#ah2)"/>
+    <path d="M320,950 V888" marker-end="url(#ah2)"/>
+  </g>
+  <g fill="#94a3b8" font-size="11">
+    <text x="147" y="345">16k PCM</text>
+    <text x="147" y="359" font-size="10">≈400 GB/日</text>
+    <text x="1047" y="345">合成音频</text>
+    <text x="592" y="520">路由决策</text>
+    <text x="225" y="806">RAG 检索</text>
+    <text x="332" y="924">贯穿 ①–⑦ 全链路</text>
+  </g>
+  <text x="450" y="460" fill="#94a3b8" font-size="10.5" text-anchor="middle">interim / final</text>
+  <text x="600" y="1128" fill="#64748b" font-size="11.5" text-anchor="middle">数据流自上而下（①→⑦）；⑤ 决策路由与 ⑧⑨ 治理/基础设施为贯穿层。所有组件同 AZ 低延迟域部署（RTT &lt; 0.5 ms），禁止跨城调用。</text>
+  <text x="40" y="1156" fill="#94a3b8" font-size="12" font-weight="bold">图例（配色语义与线型）</text>
+  <rect x="40" y="1168" width="16" height="16" rx="3" fill="#1e3a5f" stroke="#38bdf8"/>
+  <text x="62" y="1180" fill="#cbd5e1" font-size="11.5">接入与媒体</text>
+  <rect x="250" y="1168" width="16" height="16" rx="3" fill="#0f2b46" stroke="#7dd3fc"/>
+  <text x="272" y="1180" fill="#cbd5e1" font-size="11.5">语音 AI 管线</text>
+  <rect x="460" y="1168" width="16" height="16" rx="3" fill="#3b2f0b" stroke="#fbbf24"/>
+  <text x="482" y="1180" fill="#cbd5e1" font-size="11.5">决策路由</text>
+  <rect x="650" y="1168" width="16" height="16" rx="3" fill="#042f2e" stroke="#5eead4"/>
+  <text x="672" y="1180" fill="#cbd5e1" font-size="11.5">Agent 与工具</text>
+  <rect x="40" y="1200" width="16" height="16" rx="3" fill="#2e1065" stroke="#c084fc"/>
+  <text x="62" y="1212" fill="#cbd5e1" font-size="11.5">数据与知识</text>
+  <rect x="250" y="1200" width="16" height="16" rx="3" fill="#1e293b" stroke="#94a3b8"/>
+  <text x="272" y="1212" fill="#cbd5e1" font-size="11.5">治理</text>
+  <rect x="460" y="1200" width="16" height="16" rx="3" fill="#052e16" stroke="#4ade80"/>
+  <text x="482" y="1212" fill="#cbd5e1" font-size="11.5">信创基础设施</text>
+  <line x1="650" y1="1208" x2="695" y2="1208" stroke="#7dd3fc" stroke-width="1.6" marker-end="url(#ah1)"/>
+  <text x="703" y="1212" fill="#cbd5e1" font-size="11.5">数据流</text>
+  <line x1="790" y1="1208" x2="835" y2="1208" stroke="#94a3b8" stroke-width="1.4" stroke-dasharray="5 4" marker-end="url(#ah2)"/>
+  <text x="843" y="1212" fill="#cbd5e1" font-size="11.5">支撑 / 贯穿 / 检索</text>
+</svg>
+</div>
+<p class="figcap">本图为内联 SVG 矢量图，零外部依赖，离线 / 打印均可直接查看。</p>
+<p><strong class="hl">各层职责与选型理由。</strong> 接入层同时承载 SIP/PSTN/IMS 与 WebRTC/APP 三类入口，SBC 做编解码归一（G.711/PCMU、Opus 24 kbps）和过载保护；媒体网关层做 AEC、噪声抑制、说话人锁定、声纹特征提取，输出 16 kHz 单声道 PCM 到 AI 管线。语音 AI 管线采用 VAD→ASR→LLM→TTS 级联而非端到端 speech-to-speech 直连，理由是级联链路每一段可独立观测、可替换、可降级，对电信业务的可运维性压倒"少一跳"的理论收益。决策路由层与编排层解耦，每轮对话调用 1–2 次决策模型（路由 + 前置护栏，&lt; 30 ms 目标）决定走小模型/中模型/星辰大模型、是否走工具、是否直接转人工。Agent 工具层以"读多写少、幂等优先"为第一原则，所有副作用（销户、停机、退款）必须二次确认或授权码。数据层按热度分层：Redis 放会话上下文与热词，达梦/金仓放工单与通话结构化数据，向量库放知识库，对象存储放脱敏后的通话录音。<strong class="hl">跨端延伸（Web/App/车载/IoT）</strong>：车载与 IoT 端侧前置唤醒、VAD 与降噪（端侧小模型，复用 §6 模型迁移 B 档的轻量化路径），只把尾点后的有效语音段上云，云端复用同一条 ASR/LLM/TTS 管线——端云协同既降带宽也降云端并发。</p>
+<p><strong class="hl">信创基础设施映射。</strong> 鲲鹏/飞腾（ARMv8）承载媒体网关、无状态编排、Redis、Kafka、接入网关；海光（x86 兼容）作为存量 x86 中间件与部分国产化迁移过渡的兜底；昇腾 910B 承载 LLM 推理与峰值期 ASR/TTS 卸载；麒麟 V10/统信 UOS/openEuler 作为 OS 三选二双栈验证；达梦 DM8 作主库、人大金仓 KingbaseES 作备选或按省分库。天翼云 4.0 官方适配中心已明确提供鲲鹏/海光 + CTyunOS/麒麟、飞腾 + CTyunOS 的组合，并支持多种国产 OS、数据库、中间件适配，可作为资源交付底座<span class="cite">[14]</span>。</p>
+<h2 id="s4">2. 延迟预算拆解：1.5 秒怎么来的</h2>
+<p><strong class="hl">1.5 秒不是"加起来刚好 1.5"，而是给每一跳留死线、总和不许超 1.5。</strong> 核心优化思想是"任何两段不能串行就并行"：VAD 尾点尚未确认时 ASR 已在出 interim 文本，LLM 已在用 interim 做 prefill，TTS 已在收到第一个完整短句时出首包。</p>
+<h3 id="s5">WebRTC 预算（目标：P50 800 / P95 1350 / P99 2200 ms）</h3>
+<div class="table-wrap"><table><tr><th>段</th><th>P50</th><th>P95</th><th>P99</th><th>优化手段</th></tr><tr><td>客户端采集+编码</td><td>40</td><td>80</td><td>150</td><td>Opus 20ms 包长、固定采样</td></tr><tr><td>网络传输（RTP 上行）</td><td>30</td><td>60</td><td>120</td><td>同 Region 接入、预建连</td></tr><tr><td>网关 AEC/降噪/重采样</td><td>10</td><td>20</td><td>40</td><td>算子融合、ARM NEON</td></tr><tr><td>VAD 尾点等待</td><td>250</td><td>400</td><td>700</td><td>300ms 静音尾点、韵律判停兜底</td></tr><tr><td>ASR 首字（interim）</td><td>120</td><td>250</td><td>450</td><td>600ms chunk、缓存复用、INT8</td></tr><tr><td>LLM TTFT（用 interim prefill）</td><td>120</td><td>250</td><td>450</td><td>前缀缓存、chunked prefill、小/中模型路由</td></tr><tr><td>句子切分等待</td><td>40</td><td>80</td><td>150</td><td>边到边标点、语义完整度判停</td></tr><tr><td>TTS TTFB</td><td>80</td><td>150</td><td>250</td><td>句子级流式、双轨混合架构</td></tr><tr><td>网络传输（音频下行）</td><td>30</td><td>60</td><td>120</td><td>同上</td></tr><tr><td>客户端 jitter 缓冲+播放</td><td>80</td><td>120</td><td>200</td><td>动态缓冲、首包立即开播</td></tr><tr><td><strong class="hl">合计</strong></td><td><strong class="hl">800</strong></td><td><strong class="hl">1350</strong></td><td><strong class="hl">2200</strong></td><td></td></tr></table></div>
+<h3 id="s6">SIP 预算（目标：P50 1050 / P95 1500 / P99 2400 ms）</h3>
+<div class="table-wrap"><table><tr><th>段</th><th>P50</th><th>P95</th><th>P99</th><th>说明</th></tr><tr><td>电话承载网（PSTN/IMS/SBC）</td><td>120</td><td>220</td><td>400</td><td>SIP 多一跳、运营商网抖动</td></tr><tr><td>SBC/网关处理</td><td>15</td><td>30</td><td>60</td><td>编解码、DTMF 处理</td></tr><tr><td>AEC/降噪/声纹</td><td>10</td><td>20</td><td>40</td><td>电话回声路径复杂</td></tr><tr><td>VAD 尾点</td><td>250</td><td>400</td><td>700</td><td>同 WebRTC</td></tr><tr><td>ASR 首字</td><td>120</td><td>250</td><td>450</td><td>同上</td></tr><tr><td>LLM TTFT</td><td>120</td><td>250</td><td>450</td><td>同上</td></tr><tr><td>句子切分</td><td>40</td><td>80</td><td>150</td><td>同上</td></tr><tr><td>TTS TTFB</td><td>80</td><td>150</td><td>250</td><td>同上</td></tr><tr><td>回传承载网</td><td>120</td><td>220</td><td>400</td><td>SIP 下行多一跳</td></tr><tr><td>播放缓冲</td><td>100</td><td>150</td><td>250</td><td>电话侧缓冲略长</td></tr><tr><td><strong class="hl">原始合计</strong></td><td><strong class="hl">975</strong></td><td><strong class="hl">1770（超标 270）</strong></td><td><strong class="hl">3150</strong></td><td>原始链路、不加降级</td></tr><tr><td><strong class="hl">降级后承诺</strong></td><td><strong class="hl">≤1050</strong></td><td><strong class="hl">≤1500</strong></td><td><strong class="hl">≤2400</strong></td><td>L1/L2 降级兜底后的上限</td></tr></table></div>
+<p>SIP 预算在 P95 下超标约 270 ms，故设计两档降级：<strong class="hl">L1 降级</strong>（工具调用慢）触发 TTS 先播"正在为您查询"，把 E2E 拆成"首包+信息包"两段，用户感知不空转；<strong class="hl">L2 降级</strong>（LLM 超时 800ms）用规则模板句直接回，保住 1.5 秒红线。这意味着"P95 1.5 秒"的承诺值是降级兜底后的上限，正常链路目标仍是 1.35 秒。</p>
+<p><strong class="hl">六段优化手段逐个落地。</strong></p>
+<ol class="lst"><li><strong class="hl">流式重叠（streaming overlap）</strong>：ASR 每 600 ms 出一次增量文本，编排层立即把 interim 送 LLM 做<strong class="hl">投机 prefill</strong>，不等 final。注意 interim 文本不稳定（后续 chunk 会改写前面的字），final 到达后须校验前缀一致性：命中（目标 40–60%）则复用已算 KV，不命中丢弃重算——真正稳定的收益来自系统提示词 prefix cache，interim 投机只是增量收益。FunASR 官方实时听写链路正是"FSMN-VAD-realtime → Paraformer-online"，VAD 尾点间隔 600 ms、识别文字间隔 600 ms<span class="cite">[3]</span>，与本方案 chunk 策略一致。</li><li><strong class="hl">interim 提前触发</strong>：首句小于 4 字直接放行，大于 4 字等标点或韵律边界；用"语义完整度"而非"长度"判停，避免句子切半。</li><li><strong class="hl">Prefix cache</strong>：系统提示词、角色设定、业务场景模板常驻 KV，命中率目标 &gt; 85%，TTFT 下降 30–50%。vLLM-Ascend v0.9.1 已正式支持 automatic prefix caching 与 chunked prefill<span class="cite">[16]</span>，是昇腾侧可行路径。</li><li><strong class="hl">句子级 TTS</strong>：不做整段文本合成，以标点/意群切句，首句到达即开播；Qwen3-TTS 的 dual-track 混合流式架构首包可至 97 ms<span class="cite">[9]</span>，是本方案首选。CosyVoice 3.0 的双向流式（文本流入 + 音频流出）官方口径首包 150 ms<span class="cite">[24]</span>，不进在线主链路，改由方言专线与固定话术离线预合成承接——命中即播，推理时延归零。</li><li><strong class="hl">投机解码/小模型预热</strong>：高并发峰期对中模型启用 MTP 式投机解码，首 token 加速 20–80%；vLLM-Ascend 已支持 Ngram 与 MTP 投机解码<span class="cite">[16]</span>。</li><li><strong class="hl">打断检测前置</strong>：用户侧能量 + VAD + 语义 turn detection 三重判停，模型生成中的尾音用"快速淡出 + 早停"而非硬切，避免爆破音。</li></ol>
+<h2 id="s7">3. 容量模型与资源估算</h2>
+<p><strong class="hl">估算口径说明：下表全部为架构估算，非官方实测；ASR/TTS 单实例吞吐取生产工程经验值（FunASR 流式 GPU 百路级、MOSS-TTS-Nano 纯 CPU 千路级），须以电信真实方言/噪声语料 POC 校准。</strong></p>
+<h3 id="s8">会话并发 → 模型并发换算（占空比模型）</h3>
+<p><strong class="hl">模型层容量不按会话并发全量计，而按"占空比"折算——一路 90 秒通话里，各模型真正在烧算力的时间占比远小于 1。</strong> 基准假设：单通 90 秒、约 6 轮对话；用户说话合计约 30 秒（33%）；LLM 生成合计约 15 秒（每轮约 2.5 秒，17%）；AI 播报合计约 45 秒（50%），TTS 算力占用 = 播报时长 × RTF（≈0.3）。</p>
+<div class="table-wrap"><table><tr><th>模型层</th><th>并发折算公式</th><th>峰值并发（架构估算）</th></tr><tr><td>ASR</td><td>7365 × 说话占比 33%</td><td>≈ 2430 路</td></tr><tr><td>LLM（合计）</td><td>7365 × 生成占比 17%</td><td>≈ 1252 并发</td></tr><tr><td>├ 小模型 40%</td><td>1252 × 40%</td><td>≈ 501 并发</td></tr><tr><td>├ 中模型 50%</td><td>1252 × 50%</td><td>≈ 626 并发</td></tr><tr><td>└ 大模型 10%</td><td>1252 × 10%</td><td>≈ 125 并发</td></tr><tr><td>TTS</td><td>7365 × 播报占比 50% × RTF 0.3</td><td>≈ 1105 并发流</td></tr></table></div>
+<p>接入网关与媒体网关按会话并发全量计（7365 × 1.5 = 11048 路），模型层按上表折算。占空比假设（6 轮、各段时长、RTF）须在 POC 用真实通话回灌标定——这是全部卡数推导的地基。</p>
+<h3 id="s9">100 万 DAU 基线资源表</h3>
+<div class="table-wrap"><table><tr><th>组件</th><th>容量假设</th><th>单实例规格</th><th>说明</th></tr><tr><td>接入网关（SBC/WSS）</td><td>750 QPS 等效会话</td><td>8C16G 鲲鹏</td><td>无状态，2N+2 冗余</td></tr><tr><td>媒体网关</td><td>峰值 7365 路 × 1.5 冗余 = 11048 路</td><td>16C32G 鲲鹏 + 1×NPU（可选）</td><td>AEC/降噪吃 CPU，ARM NEON 优化</td></tr><tr><td>ASR（FunASR Paraformer-streaming INT8）</td><td>峰值约 2430 路并发（说话占空比 33%），GPU RTF 0.01</td><td>1×昇腾 910B / 32 路</td><td>常态鲲鹏 CPU 5 台 32C（640 路/台）；峰谷切昇腾 20 卡卸载 640 路</td></tr><tr><td>LLM 小模型（Qwen3-4B/7B 类，意图与兜底）</td><td>LLM 总并发约 1252 × 40% ≈ 501 并发</td><td>1×昇腾 910B / 64 并发</td><td>INT4/INT8 量化，prefix cache</td></tr><tr><td>LLM 中模型（Qwen3-14B/32B，主答）</td><td>LLM 总并发 × 50% ≈ 626 并发</td><td>1×昇腾 910B / 60 并发（14B 基线）</td><td>主算力消费者；32B 备选口径见本节推导</td></tr><tr><td>LLM 大模型/星辰（复杂推理，10%）</td><td>LLM 总并发 × 10% ≈ 125 并发</td><td>2×910B（TP=2）/ 16 并发</td><td>仅疑难/工单复杂场景</td></tr><tr><td>TTS（Qwen3-TTS 1.7B）</td><td>峰值约 1105 并发流（播报占空比 × RTF）</td><td>1×昇腾 910B / 128 流</td><td>常态与峰值混部，0.6B/1.7B 按音色分档</td></tr><tr><td>TTS 兜底（MOSS-TTS-Nano 0.1B）</td><td>10% 流量降级</td><td>16C32G 鲲鹏 / 200 路</td><td>纯 CPU，48 kHz 双声道</td></tr><tr><td>TTS 方言/离线专线（CosyVoice 3.0 0.5B）</td><td>10% 方言流量 + 全部预合成任务</td><td>1×昇腾 910B / 96 流 或鲲鹏 32C</td><td>18+ 中文方言、拼音/音素定点改读<span class="cite">[24]</span>；固定话术离线渲染，命中即播</td></tr><tr><td>Redis 集群（国产化）</td><td>会话 11048 × 256KB ≈ 2.8 GB 热数据</td><td>3 主 3 从</td><td>会话上下文、限流计数</td></tr><tr><td>Kafka</td><td>峰值 1.1 万 msg/s，留存 24h</td><td>3 broker 跨 3 AZ</td><td>通话事件、审计、工单异步</td></tr><tr><td>向量库</td><td>知识条目 500 万 × 1536 维</td><td>3 分片 2 副本</td><td>工单/FAQ 检索</td></tr><tr><td>达梦 DM8</td><td>OLTP 165 万写/日 + 工单</td><td>主备 + 异地</td><td>等保四级、国密、三权分立</td></tr></table></div>
+<p><strong class="hl">ASR 资源推导</strong>：FunASR 流式 Paraformer 官方口径为 GPU 下推理效率提升约 10 倍、可支持上百路并发<span class="cite">[3]</span>；架构估算取 1 张昇腾 910B 承载 32 路实时 ASR（RTF≈0.01，留 3 倍安全余量）。峰值约 2430 路并发若全量 NPU 需数十卡量级，成本不可接受，故采用<strong class="hl">CPU 常态 + NPU 峰谷弹性</strong>：鲲鹏 32C 实例按 RTF 0.05 计单实例可承载约 640 路，常态数实例即可，按 25% 冗余部署；峰期叠加少量昇腾卡卸载数百路突发流量（承接突发与 CPU 池抖动）。<strong class="hl">峰谷切换不迁移存量会话</strong>：新会话路由到 NPU 池，旧会话在 CPU 池自然消退。这一取舍是本方案最关键的 TCO 决策。</p>
+<p><strong class="hl">LLM 资源推导</strong>：LLM 并发不等于会话并发——按占空比折算后总并发约 1252（见上换算表）。<strong class="hl">中模型采用 Qwen3-14B 基线</strong>：INT8 权重约 14 GB，单路 KV 约 0.7 GB（8K 上下文），单卡承载 60 并发；每卡 60 并发折算约 10 卡，加 25% 冗余取整。<strong class="hl">32B 进取口径（POC 验证后决定）</strong>：INT8 权重 32 GB + 32 路 × 1.5 GB KV ≈ 80 GB &gt; 64 GB，须截断至 4K 上下文（KV/路 0.75 GB）方可单卡 32 并发；每卡 32 并发折算约 20 卡，加 25% 冗余取整。小模型与大模型同理按并发 ÷ 单卡并发折算后加冗余取整。KV cache 显存是主要约束：每路每 token 约 2×层数×隐维字节数，32B 模型在 8K 上下文下单路 KV 约 1.5 GB，故必须靠 prefix cache + 上下文截断（业务对话截断到最近 6 轮）控制。<strong class="hl">诚实边界：14B 基线 P95 TTFT ≤ 200 ms 较稳妥；32B 单卡 32 并发下 P95 TTFT 250 ms 属进取目标，POC 须同步验证 PD 分离；达不到则中模型降档 14B、以延迟达标为优先。</strong></p>
+<p><strong class="hl">TTS 资源推导</strong>：TTS 的算力占用不是"播报时长"而是"播报时长 × RTF"——Qwen3-TTS 1.7B 流式首包 97 ms<span class="cite">[9]</span>，架构估算 RTF≈0.3、单卡 128 并发流；按单卡 128 流折算后加 25% 冗余取整。MOSS-TTS-Nano 仅 0.1B、原生 48 kHz 双声道、纯 CPU 可运行<span class="cite">[8]</span>，作为声卡故障/昇腾拥塞时的兜底，保证 TTS 永不成为单点。CosyVoice 3.0（0.5B）与 Qwen3-TTS 构成在线互备：在线主链路追求 97 ms 首包，CosyVoice 承担方言专线与离线预合成缓存，任一引擎 P95 TTFB 超 300 ms 自动互切，同时切走一路近百流的峰值负荷，等于给在线池加了一层弹性。</p>
+<p><strong class="hl">消息/缓存/存储</strong>：Kafka 按峰值 3.5 万 msg/s（含全量 trace span 与通话事件）、每条 2 KB 估算写入 70 MB/s，3 broker 每节点 8C16G 足够；Redis 热数据按每路会话上下文 256 KB 上限计（构成：ASR 增量文本约 20 KB + 最近 6 轮对话历史约 30 KB + 槽位/工具结果约 60 KB + 声纹特征与缓冲指针约 20 KB + 余量）≈ 2.8 GB，加 5 倍 TTL 余量取 16 GB 主节点；录音对象存储按 165 万通 × 90 s × 16 kbps ≈ 每天 300 GB，热存 30 天 ≈ 9 TB + 归档 12 个月 ≈ 100 TB，去重/降采样后热存可压至 5 TB。</p>
+<h3 id="s10">1000 万 DAU 扩容档（水平分片，不做垂直堆卡）</h3>
+<div class="table-wrap"><table><tr><th>组件</th><th>扩容策略</th><th>资源量（架构估算）</th></tr><tr><td>媒体/ASR/TTS</td><td>按省/大区 hash 分片，每片承载 ≤ 2 万路</td><td>10 个 Region × 上述资源量</td></tr><tr><td>LLM</td><td>Prefill 与 Decode 分离，跨 Region 模型路由</td><td>昇腾集群千卡级，PD 分离</td></tr><tr><td>控制面</td><td>多 AZ、每 AZ 独立故障域</td><td>3 AZ × 2N</td></tr><tr><td>数据面</td><td>达梦主备 + 异地三中心，向量库按租户分片</td><td>每中心 2 套主备 + 1 异地</td></tr></table></div>
+<p>扩容核心不是"多买卡"，而是<strong class="hl">把长连接会话钉死在单一 Region</strong>：用户接入后通过一致性 hash 绑定到固定媒体网关与 AI 管线组，禁止跨城迁移会话；模型池跨 AZ 共享但媒体池不跨城。</p>
+<h2 id="s11">4. 全双工与打断设计</h2>
+<p><strong class="hl">双引擎判停：VAD 管"声音停没停"，语义 turn detection 管"话说没说完"。</strong> 单靠 VAD 的 300–800 ms 静音尾点会白白吃掉用户时间（行业基准：VAD 尾点是最大单一延迟来源之一）；单靠语义判停则会被"嗯""啊""这个……"拖住。方案是 FSMN-VAD 出候选尾点后，轻量语义模型在 50 ms 内判断是否句末完整，二者 OR 逻辑：VAD 尾点超时 400 ms 或语义判停成立，即触发 final。<strong class="hl">尾点阈值按场景分档</strong>：高信噪比 WebRTC 用 300 ms 激进档，电话报修与老人专线用 500–600 ms 保守档（宁慢勿抢，误截断比多等 200 ms 更伤体验）；阈值不进代码进配置，由 badcase 回流每周校准。打断时反向：用户能量超阈值 + VAD 持续 200 ms + 语义判定为"新意图发起"三者 AND 成立才认定为真打断，避免咳嗽、呼气被误判。</p>
+<div class="mermaid-wrap">
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1180 950" style="width:100%;height:auto;display:block;" font-family="Microsoft YaHei, PingFang SC, sans-serif">
+  <defs>
+    <marker id="mB" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#7dd3fc"/></marker>
+    <marker id="mG" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#94a3b8"/></marker>
+    <marker id="mR" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#f87171"/></marker>
+  </defs>
+  <rect x="0" y="0" width="1180" height="950" fill="#0d1526"/>
+  <rect x="20" y="70" width="1140" height="170" rx="6" fill="#1e3a5f" fill-opacity="0.25"/>
+  <rect x="20" y="250" width="1140" height="130" rx="6" fill="#78350f" fill-opacity="0.22"/>
+  <rect x="20" y="390" width="1140" height="200" rx="6" fill="#14532d" fill-opacity="0.28"/>
+  <rect x="20" y="600" width="1140" height="280" rx="6" fill="#7f1d1d" fill-opacity="0.25"/>
+  <text x="30" y="88" fill="#94a3b8" font-size="12">① 说话阶段（流式识别，不等说完 · 全双工）</text>
+  <text x="30" y="268" fill="#94a3b8" font-size="12">② 尾点判定（VAD × 语义 OR · 等待 P50 250 / P95 400ms）</text>
+  <text x="30" y="408" fill="#94a3b8" font-size="12">③ 流式响应（prefill / 首句 / 首包并行重叠）</text>
+  <text x="30" y="618" fill="#94a3b8" font-size="12">④ 打断处理（三重判定 AND · 链路 200ms 内收敛）</text>
+  <rect x="50" y="18" width="100" height="32" rx="8" fill="#1e3a5f" stroke="#38bdf8"/>
+  <text x="100" y="38" fill="#e2e8f0" font-size="12.5" text-anchor="middle">用户</text>
+  <rect x="190" y="18" width="160" height="32" rx="8" fill="#1e3a5f" stroke="#38bdf8"/>
+  <text x="270" y="38" fill="#e2e8f0" font-size="12.5" text-anchor="middle">VAD+语义双引擎</text>
+  <rect x="385" y="18" width="90" height="32" rx="8" fill="#1e3a5f" stroke="#38bdf8"/>
+  <text x="430" y="38" fill="#e2e8f0" font-size="12.5" text-anchor="middle">ASR</text>
+  <rect x="535" y="18" width="130" height="32" rx="8" fill="#1e3a5f" stroke="#38bdf8"/>
+  <text x="600" y="38" fill="#e2e8f0" font-size="12.5" text-anchor="middle">Pipecat 编排</text>
+  <rect x="730" y="18" width="80" height="32" rx="8" fill="#1e3a5f" stroke="#38bdf8"/>
+  <text x="770" y="38" fill="#e2e8f0" font-size="12.5" text-anchor="middle">LLM</text>
+  <rect x="890" y="18" width="80" height="32" rx="8" fill="#1e3a5f" stroke="#38bdf8"/>
+  <text x="930" y="38" fill="#e2e8f0" font-size="12.5" text-anchor="middle">TTS</text>
+  <rect x="1035" y="18" width="110" height="32" rx="8" fill="#1e3a5f" stroke="#38bdf8"/>
+  <text x="1090" y="38" fill="#e2e8f0" font-size="12.5" text-anchor="middle">媒体网关</text>
+  <g fill="#64748b" font-size="10" text-anchor="middle">
+    <text x="100" y="62">主叫用户</text>
+    <text x="270" y="62">FSMN-VAD + 语义模型</text>
+    <text x="430" y="62">Paraformer INT8</text>
+    <text x="600" y="62">asyncio frame 总线</text>
+    <text x="770" y="62">Qwen3 三档分层</text>
+    <text x="930" y="62">三引擎互备</text>
+    <text x="1090" y="62">SIP ⇄ RTP/Opus</text>
+  </g>
+  <g stroke="#334155" stroke-width="1.2" stroke-dasharray="4 4">
+    <line x1="100" y1="66" x2="100" y2="880"/>
+    <line x1="270" y1="66" x2="270" y2="880"/>
+    <line x1="430" y1="66" x2="430" y2="880"/>
+    <line x1="600" y1="66" x2="600" y2="880"/>
+    <line x1="770" y1="66" x2="770" y2="880"/>
+    <line x1="930" y1="66" x2="930" y2="880"/>
+    <line x1="1090" y1="66" x2="1090" y2="880"/>
+  </g>
+  <g stroke="#7dd3fc" stroke-width="1.6">
+    <line x1="100" y1="100" x2="1090" y2="100" marker-end="url(#mB)"/>
+    <line x1="1090" y1="142" x2="270" y2="142" marker-end="url(#mB)"/>
+    <line x1="270" y1="184" x2="430" y2="184" marker-end="url(#mB)"/>
+    <line x1="600" y1="268" x2="770" y2="268" marker-end="url(#mB)"/>
+    <line x1="100" y1="310" x2="270" y2="310" marker-end="url(#mB)"/>
+    <line x1="600" y1="436" x2="770" y2="436" marker-end="url(#mB)"/>
+    <line x1="930" y1="520" x2="1090" y2="520" marker-end="url(#mB)"/>
+  </g>
+  <g stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="6 4">
+    <line x1="430" y1="226" x2="600" y2="226" marker-end="url(#mG)"/>
+    <line x1="430" y1="394" x2="600" y2="394" marker-end="url(#mG)"/>
+    <line x1="770" y1="478" x2="930" y2="478" marker-end="url(#mG)"/>
+    <line x1="1090" y1="562" x2="100" y2="562" marker-end="url(#mG)"/>
+  </g>
+  <g stroke="#f87171" stroke-width="1.6">
+    <line x1="100" y1="650" x2="270" y2="650" marker-end="url(#mR)"/>
+    <line x1="600" y1="776" x2="770" y2="776" marker-end="url(#mR)"/>
+    <line x1="600" y1="818" x2="930" y2="818" marker-end="url(#mR)"/>
+  </g>
+  <g stroke="#f87171" stroke-width="1.5" stroke-dasharray="6 4">
+    <line x1="270" y1="734" x2="600" y2="734" marker-end="url(#mR)"/>
+    <line x1="770" y1="860" x2="600" y2="860" marker-end="url(#mR)"/>
+  </g>
+  <path d="M270,340 h30 v24 h-30" fill="none" stroke="#7dd3fc" stroke-width="1.6" marker-end="url(#mB)"/>
+  <path d="M270,680 h30 v24 h-30" fill="none" stroke="#f87171" stroke-width="1.6" marker-end="url(#mR)"/>
+  <g fill="#cbd5e1" font-size="12" text-anchor="middle">
+    <text x="595" y="94">用户说话（RTP）</text>
+    <text x="680" y="136">16k PCM 帧</text>
+    <text x="350" y="178">流式 chunk</text>
+    <text x="515" y="220">interim 增量文本</text>
+    <text x="685" y="262">interim prefill</text>
+    <text x="185" y="304">用户继续说 / 停顿</text>
+    <text x="515" y="388">final 句末文本</text>
+    <text x="685" y="430">最终前缀触发生成</text>
+    <text x="850" y="472">首句文本</text>
+    <text x="1010" y="514">首音频包（流式）</text>
+    <text x="595" y="556">播放首音（E2E 计时终点）</text>
+  </g>
+  <g fill="#64748b" font-size="10" text-anchor="middle">
+    <text x="680" y="156">20ms 帧 · 全双工</text>
+    <text x="515" y="240">首字 P50 120 / P95 250ms</text>
+    <text x="685" y="282">TTFT P50 120ms</text>
+    <text x="850" y="492">切分等待 P50 40ms</text>
+    <text x="1010" y="534">TTFB P50 80 / P95 150ms</text>
+    <text x="595" y="576">E2E P50 800 / P95 1350ms</text>
+    <text x="435" y="748">链路 200ms 内收敛</text>
+  </g>
+  <text x="310" y="356" fill="#cbd5e1" font-size="12">VAD 尾点 AND 语义完整？</text>
+  <text x="310" y="372" fill="#64748b" font-size="10">尾点等待 P50 250 / P95 400ms</text>
+  <g fill="#fca5a5" font-size="12" text-anchor="middle">
+    <text x="185" y="644">用户打断（能量↑）</text>
+    <text x="435" y="728">response.cancel / 中断帧</text>
+    <text x="685" y="770">取消当前生成</text>
+    <text x="765" y="812">淡出 + 丢弃音频队列</text>
+    <text x="685" y="854">新轮次 final</text>
+  </g>
+  <text x="310" y="696" fill="#fca5a5" font-size="12">三重判定：能量 + VAD + 语义</text>
+  <text x="310" y="712" fill="#64748b" font-size="10">AND 逻辑 · 防咳嗽 / 呼气误触</text>
+  <rect x="740" y="576" width="230" height="24" rx="5" fill="#1e3a5f" stroke="#38bdf8"/>
+  <text x="855" y="592" fill="#7dd3fc" font-size="11" text-anchor="middle">LLM 续句中 · TTS 持续推流</text>
+  <g font-size="11.5">
+    <line x1="140" y1="906" x2="180" y2="906" stroke="#7dd3fc" stroke-width="1.6" marker-end="url(#mB)"/>
+    <text x="188" y="910" fill="#cbd5e1">请求 / 控制流</text>
+    <line x1="400" y1="906" x2="440" y2="906" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="6 4" marker-end="url(#mG)"/>
+    <text x="448" y="910" fill="#cbd5e1">数据 / 媒体回传</text>
+    <line x1="660" y1="906" x2="700" y2="906" stroke="#f87171" stroke-width="1.6" marker-end="url(#mR)"/>
+    <text x="708" y="910" fill="#fca5a5">打断路径</text>
+  </g>
+  <text x="590" y="938" fill="#64748b" font-size="11.5" text-anchor="middle">E2E 计时：用户物理说完（声学尾点）→ 播放首音；灰色小字为该跳延迟预算（P50 / P95，WebRTC 口径）。</text>
+</svg>
+</div>
+<p class="figcap">本图为内联 SVG 矢量图，零外部依赖，离线 / 打印均可直接查看。</p>
+<p><strong class="hl">打断信令走标准协议，自研层只做幂等。</strong> Realtime 模式使用 OpenAI Realtime 兼容事件集，支持 <code>input_audio_buffer.speech_started / speech_stopped</code> 与 <code>response.cancel</code><span class="cite">[6]</span>；Pipecat 原生支持 interruption handling、turn detection 与 frame 级中断<span class="cite">[4]</span>。编排层收到中断帧后，向 LLM 发取消、向 TTS 发"淡出后清空音频队列"、向工具层发"标记本轮副作用待补偿"，整条链 200 ms 内收敛。</p>
+<p><strong class="hl">工具调用期禁打断是非协商项。</strong> 已发起销户、停机、退款、密码重置等非幂等写操作时，TTS 播放"正在为您办理，请勿打断"，同时开启禁打断窗口（最长 4 秒，每 2 秒分段播报进度提示）；窗口内用户音频只进入缓冲不触发新轮次。读类操作（查余额、查套餐）可打断，但需做结果合并，避免打断后重复播报。</p>
+<p><strong class="hl">声学侧：AEC + 噪声抑制 + 说话人锁定。</strong> SIP 侧回声路径复杂，必须做线路回声消除（LEC）+ 声学回声消除（AEC）；WebRTC 走 <code>echoCancellation: true</code> 内置处理。背景噪声不仅影响听感更直接影响 ASR 准确率，故在网关做 RNNoise/深度学习降噪后送 ASR。说话人锁定用 cam++ 说话人嵌入 + 声纹库比对，多人环境（营业厅、家庭通话）下锁定主叫人，旁路说话人不触发打断。声纹用于锁定，不用于认证，避免声纹克隆攻击。</p>
+<h2 id="s12">5. 决策路由层（Microsoft-Decision-1 范式落地）</h2>
+<p><strong class="hl">决策模型的定位是"在每一步做 30 ms 内的结构化判定"，不是又一个聊天机器人。</strong> Microsoft-Decision-1 基于 Qwen3.5-9B 后训练，专为预定义选项的结构化选择设计，输出答案与置信度，用于路由、分类、打分、护栏；官方定位明确支持 agent controls、model routing、intent analysis、safety screening 等场景<span class="cite">[1]</span>。这正是电信 10000 号最频繁的负载形态：每句话只需要"归哪类、走哪模型、要不要转人工"，不该为此烧一次大模型。</p>
+<p><strong class="hl">但本方案不把 Decision-1 直接搬进生产。</strong> 原因有三：其一，它是微软公有云 Foundry 上的托管服务，无法满足私有化数据不出域；其二，9B 体量对"每句话都调用一次"仍偏重，百万 DAU 下每日数千万次调用的算力与延迟不可接受；其三，中国电信已有星辰大模型体系与方言语音能力，应优先复用。落地方式是<strong class="hl">范式复刻而非模型搬运</strong>：以 Decision-1 的三类输出（yes/no、多选分类、有序打分）+ 校准置信度为协议规范，用私有化小模型承载。</p>
+<p><strong class="hl">信创私有化实现：TinyBERT/BERT-wwm 双塔 + 规则校验。</strong> 第一层用约 6 层 TinyBERT 类模型（&lt; 50M 参数，鲲鹏 CPU 单实例 2000 QPS）做意图分类与紧急度评分，输出归一化置信度；第二层用 BERT-wwm 类稍大模型做疑难样本复核；第三层规则引擎做业务硬约束（如"销户必须先查欠费"）。三档阈值：</p>
+<div class="table-wrap"><table><tr><th>置信度区间</th><th>动作</th><th>典型场景</th></tr><tr><td>≥ 0.92</td><td>自动放行，直接路由到对应模型/工具/归属组</td><td>"查话费""宽带报修""改套餐"高置信意图</td></tr><tr><td>0.65 – 0.92</td><td>规则校验 + 反问澄清一次</td><td>意图存在歧义、方言识别不稳</td></tr><tr><td>&lt; 0.65</td><td>直接转人工坐席</td><td>情绪激动、紧急度评分高、敏感业务</td></tr></table></div>
+<p>阈值不是凭经验拍定，而是用电信历史工单做校准集：把 0.92 对应的准确率做到 ≥ 98%、0.65 对应的人工复核成本最低点。若校准后 0.92 档准确不足，自动下修阈值并告警，而非硬撑。</p>
+<p><strong class="hl">模型路由四档，按"成本×延迟×能力"动态选。</strong></p>
+<div class="table-wrap"><table><tr><th>流量</th><th>触发条件</th><th>模型</th><th>目标</th></tr><tr><td>40%</td><td>意图明确、模板可答</td><td>小模型 Qwen3-4B/7B 或规则模板</td><td>TTFT &lt; 180 ms，单路成本最低</td></tr><tr><td>50%</td><td>多轮、需工具、需方言</td><td>中模型 Qwen3-14B/32B 或星辰语义</td><td>TTFT &lt; 350 ms</td></tr><tr><td>10%</td><td>复杂工单、投诉升级、多工具编排</td><td>大模型/星辰大模型</td><td>允许 800 ms 首包，但保质量</td></tr><tr><td>兜底</td><td>模型超时或降级</td><td>规则模板句</td><td>保住 1.5 s 红线</td></tr></table></div>
+<p><strong class="hl">护栏必须前置与后置各一道。</strong> 前置护栏在决策层拦截：提示注入（工具描述/知识库被污染）、敏感信息外发、业务黑名单（"删除所有用户"类指令）；后置护栏在 TTS 前拦截：输出含手机号/身份证全文、金额错误、与 CRM 实际数据不一致。所有拦截事件进审计，并回流为 badcase。</p>
+<p><strong class="hl">任务型多轮对话管理（DST）。</strong> 10000 号办工单是典型多轮任务型对话：为每类业务定义槽位 schema（如宽带报修 = 号码 + 地址 + 故障类型 + 联系人），对话状态跟踪模块维护槽位填充进度，缺槽时由小模型生成追问话术而非大模型自由发挥；槽位置信度与决策路由共用同一套校准体系，关键槽位（号码、金额）必须 ASR 2-pass 复核或语音复述确认。对话状态外置 Redis（构成见 §3），跨实例可恢复，配合 2 秒 checkpoint 支撑故障切换。</p>
+<h2 id="s13">6. 信创适配专项</h2>
+<p><strong class="hl">适配目标不是"能编译"，而是"全栈链路在国产环境下通过压测与等保"。</strong> 2026 年第 2 号安全可靠测评结果首次集中纳入 AI 训练推理芯片<span class="cite">[13]</span>，意味着选型必须看安全可靠目录，不能用"兼容性名单"代替合规资质。</p>
+<div class="table-wrap"><table><tr><th>层级</th><th>首选</th><th>备选/兜底</th><th>适配要点</th></tr><tr><td>AI 推理</td><td>昇腾 910B（64 GB HBM2e，FP16 320 TFLOPS 级）</td><td>海光 DCU（x86 生态过渡）</td><td>CANN 版本与 vLLM-Ascend 严格锁版本；算子白名单</td></tr><tr><td>媒体/控制 CPU</td><td>鲲鹏 920</td><td>飞腾腾云 S2500</td><td>ARM64 重编译，NEON 优化 AEC/降噪/编解码</td></tr><tr><td>x86 过渡</td><td>海光</td><td>—</td><td>存量中间件兼容，逐步迁 ARM</td></tr><tr><td>OS</td><td>麒麟 V10</td><td>统信 UOS、openEuler、CTyunOS</td><td>双栈并行验证 3 个月再定主栈</td></tr><tr><td>数据库</td><td>达梦 DM8</td><td>人大金仓 KingbaseES</td><td>DM8 官方称通过等保四级认证、国密、三权分立<span class="cite">[15]</span></td></tr><tr><td>缓存</td><td>国产化 Redis 发行版</td><td>Tendis/自研</td><td>集群版、跨 AZ 复制、持久化</td></tr><tr><td>消息</td><td>国产 Kafka 发行版/东方通</td><td>RocketMQ 国产发行版</td><td>事务消息、死信队列、审计</td></tr><tr><td>可观测</td><td>Prometheus + OTel + 国产 Grafana 发行版</td><td>自研看板</td><td>指标/日志/链路三态分离</td></tr></table></div>
+<p><strong class="hl">昇腾 CANN 适配的关键动作。</strong> 第一，建立"模型-驱动-CANN-框架"四位一体版本矩阵，任何一项升级都重跑回归；vLLM-Ascend 官方明确提示 CANN 与 Torch-npu 必须同步升级<span class="cite">[16]</span>，这是生产硬约束。第二，量化策略以 W8A8 为主（昇腾"黄金标准"，显存减半、精度损失 &lt; 0.5%），FP16 用于主库、INT8 用于流量副本；vLLM-Ascend 支持 dense W4A8、MOE 量化<span class="cite">[16]</span>。第三，投机解码用 Ngram 起步、MTP 逐步灰度，避免精度回归。第四，prefix caching 与 chunked prefill 必须开<span class="cite">[16]</span>，这是 1.5 秒预算能否达标的模型侧关键。</p>
+<p><strong class="hl">模型迁移分三档。</strong> A 档：FunASR、Qwen3-TTS、CosyVoice 3.0、Qwen3 系列有开源权重与昇腾适配路径，优先；B 档：MOSS-TTS-Nano 0.1B 原生支持 ARM/鲲鹏 CPU 与纯 CPU 部署<span class="cite">[9]</span>，几乎零迁移成本；C 档：星辰大模型需与中国电信 TeleAI 协同，以模型服务接口方式集成，避免直接绑定其内部部署形态。A 档里两件事必须在 POC 就地验证：其一，CosyVoice 3.0 为 Flow Matching + DiT 结构，官方给出 vLLM 与 TensorRT-LLM 运行时<span class="cite">[23]</span>，昇腾侧要用 CANN 融合 attention 替换并回归迭代步数与 dtype；其二，Qwen3-TTS 的 97 ms 首包依赖 FlashAttention2，昇腾无该算子，未做等价替换时实测可退化到约 0.3 倍实时，届时回退 0.6B 版本以并发换时延。</p>
+<p><strong class="hl">合规硬指标。</strong> 数据不出域：所有语音、文本、向量、日志只落在天翼云专属资源池，对外只出脱敏摘要；等保：按三级建设、关键组件按四级选型——达梦 DM8 等保四级认证可作 DB 层底座<span class="cite">[15]</span>，但系统整体等保等级由测评结论决定，而非单品资质；国密：传输 SM2/SM3/SM4、存储国密算法、硬件加密机；三员分权：系统管理员、安全管理员、审计管理员相互独立；审计留痕：问答日志、模型调用、数据导出全量留存 ≥ 6 个月，WORM 存储不可篡改。</p>
+<p><strong class="hl">备案线必须单独立项。</strong> AI 生成式服务管理办法配套执行细则已落地"三轨制"合规框架（算法备案、大模型备案、AI 应用登记）<span class="cite">[12]</span>，方案须为备案预留模型版本快照、训练数据溯源、输出审核规则三套交付物。</p>
+<h2 id="s14">7. 高可用与弹性伸缩</h2>
+<p><strong class="hl">99.99% 可用性意味着年度停机预算 52.6 分钟，99.999% 是 5.26 分钟。</strong> 分解到四层：接入层允许 10 分钟、媒体层 10 分钟、模型层 20 分钟、数据层 12.6 分钟。任何单 AZ 故障不计入用户可感知停机的前提是"秒级切流"，因此会话状态必须在 AZ 间可重建（Redis 跨 AZ 复制 + 媒体网关无状态）。</p>
+<p><strong class="hl">多 Region / 多 AZ / 多活。</strong> 控制面与模型面三 AZ 全活，任一 AZ 故障流量 50/50 自动重平衡；数据面达梦 DataWatch 主备 + 异地三中心，官方口径为秒级切换、0 数据丢失<span class="cite">[15]</span>。跨 Region 采用"主活+备活"，省际流量按 hash 固定，故障时整片迁移而非逐会话迁移。</p>
+<p><strong class="hl">GPU 扩容 3–5 分钟 vs 峰值 30 秒的矛盾，靠"预测扩容 + 缓冲削峰 + 降级"三层解决。</strong> 语音流量高峰可预测（早 9 点、午 12 点、晚 8 点、故障报修突发），用 7 天历史做时序预测，提前 15 分钟按 70% 预测值扩容；剩余 30% 由缓冲队列削峰（媒体网关缓冲 2 秒音频、Kafka 承接 30 秒峰值）；超过队列深度 80% 触发 L1 降级（TTS 先播提示句）、95% 触发 L2 降级（小模型/模板）、99% 触发限流与部分流量转人工。这样"扩容速度慢"不再是架构风险，因为缓冲+降级覆盖了整个扩容窗口。</p>
+<p><strong class="hl">熔断限流与潮汐调度。</strong> 每条出向依赖（CRM、计费、工单）独立熔断器，失败率 50% 持续 10 秒即熔断 30 秒，期间返回缓存或兜底话术；单用户限流（同一号码 30 秒内不超过 5 次新会话）、单网关限流（CPU 70% 触发不接收新会话）。潮汐调度：夜间把媒体网关缩容 40%，把释放的 ARM CPU 借给离线 ASR 微调与知识库索引构建，白天再回收。</p>
+<p><strong class="hl">切流策略按"五分钟决策"设计。</strong> 检测到模型面 P95 时延连续 3 个 1 分钟周期超 2 秒、或错误率 &gt; 5%，5 分钟内完成"模型副本摘除→流量迁同城副本→TTS 切 MOSS-Nano 兜底→仍不恢复则 SIP 侧自动转人工队列"。所有切流必须可一键回滚，且回滚不改变已建立会话的上下文。</p>
+<p><strong class="hl">Service Mesh 的边界与发布期 draining。</strong> 媒体面与模型面直连保延迟，不进 Mesh；控制面与工具面（编排→决策→工具→工单）走 Service Mesh 拿 mTLS、灰度与流量治理。版本发布时对媒体网关与编排实例执行长连接 draining：先摘新会话流量，存量通话自然消退（上限 5 分钟）再下线；配合会话 2 秒 checkpoint，发布窗口内单实例故障可在同 AZ 副本恢复上下文。</p>
+<h2 id="s15">8. 可观测性与告警</h2>
+<p><strong class="hl">指标分四层，每层有自己的 SLI 与负责人。</strong></p>
+<div class="table-wrap"><table><tr><th>层面</th><th>核心指标</th><th>采集方式</th><th>责任方</th></tr><tr><td>控制面</td><td>接入成功率、SIP 建立时延、WebSocket 重连率</td><td>网关埋点 + Prometheus</td><td>接入组</td></tr><tr><td>媒体面</td><td>每路 RTP 抖动、丢包、MOS、AEC 收敛度</td><td>RTP stats + OTel</td><td>媒体组</td></tr><tr><td>模型面</td><td>TTFS/TTFT/TTFB/E2E P50/P95/P99、GPU 利用率、KV cache 命中率</td><td>模型代理埋点</td><td>算法组</td></tr><tr><td>业务面</td><td>自助解决率、转人工率、首解率、用户打断率、工单闭环时长</td><td>工单系统对账</td><td>运营组</td></tr></table></div>
+<p><strong class="hl">告警分三级，避免告警风暴。</strong></p>
+<div class="table-wrap"><table><tr><th>级别</th><th>触发</th><th>响应</th><th>示例</th></tr><tr><td>P1</td><td>可用性 &lt; 99.9% 持续 5 分钟，或 E2E P95 &gt; 3 s</td><td>15 分钟上会，立即降级</td><td>全 Region LLM 不可用</td></tr><tr><td>P2</td><td>单模型副本错误率 &gt; 5%，或转人工率突增 50%</td><td>30 分钟内处置</td><td>某方言 ASR 准确率骤降</td></tr><tr><td>P3</td><td>单卡温度告警、Kafka lag &gt; 10 万</td><td>工作日处理</td><td>单 NPU HBM ECC 报错</td></tr></table></div>
+<p><strong class="hl">全链路 traceId 与通话录音双轨审计。</strong> 每通电话生成 <code>callId</code>，派生 <code>turnId/sessionId/traceId</code>，网关、ASR、决策、LLM、TTS、工具各段打 span；录音以 <code>callId</code> 为索引对象存储，保存 6–12 个月（依等保要求与存储成本平衡）。<strong class="hl">badcase 回流是质量飞轮的核心</strong>：把"用户打断""转人工""用户重复提问""ASR 与坐席记录不一致"四类样本自动聚类，每周人工标注 2000 条，分别回流到 ASR 热词、决策阈值、LLM few-shot、TTS 音库。</p>
+<p><strong class="hl">幻觉治理采用"输出双通道"。</strong> 事实类回答（余额、套餐、账单）必须带 <code>sourceId</code> 与 CRM 查询时间，TTS 播报前做数值一致性校验；政策类回答走 RAG 取原文片段，超域问题一律转人工而非让模型"发挥"。</p>
+<p><strong class="hl">LLMOps：Prompt/模型/热词三类资产的发布流水线与 A/B 测试。</strong> 三类资产统一 Git 化版本管理，发布必经评测农场回归（badcase 集 + 方言集 + 红队集三套固定评测），按 callId hash 灰度 5%→20%→100%，一键回滚到上一版本。A/B 测试按 callId 分流，对账指标为自助解决率、打断率、转人工率与 E2E P95，双样本检验显著才允许全量；模型版本、Prompt 版本、热词版本三维组合记入 traceId，任何 badcase 可精确归因到版本组合。</p>
+<h2 id="s16">9. 技术选型对比与决策矩阵</h2>
+<p><strong class="hl">评分口径：电信 10000 号场景下，按 成本 25% / 性能 25% / 私有化 20% / 可运维 15% / 合规 15% 加权。</strong> 5 分最优。</p>
+<h3 id="s17">ASR：FunASR 胜出，Qwen3-ASR 作双引擎</h3>
+<div class="table-wrap"><table><tr><th>候选</th><th>得分</th><th>推荐</th><th>理由与风险</th></tr><tr><td>FunASR（Paraformer-streaming / SenseVoice / Nano / MLT / GGUF / FSMN-VAD / cam++ / ITN）</td><td>4.6</td><td><strong class="hl">主选</strong></td><td>流式首字约 600 ms、可上百路并发、支持 ITN/热词/标点/方言<span class="cite">[3]</span>；有 GGUF 与 ONNX 量化路径，私有化最成熟。风险：流式精度略低于离线，需 2-pass 兜底</td></tr><tr><td>Whisper（含 Qwen 蒸馏变体）</td><td>3.8</td><td>备选</td><td>生态广但流式与中文方言非强项，商用授权需核查</td></tr><tr><td>Qwen3-ASR</td><td>4.2</td><td>双引擎/灰度</td><td>多语言与方言能力新，但 2026 年初发布、昇腾适配成熟度待 POC 验证</td></tr></table></div>
+<p><strong class="hl">结论</strong>：FunASR 作主引擎，Qwen3-ASR 作 A/B 对照，按省/方言分流量灰度，达标后替换。</p>
+<h3 id="s18">编排：Pipecat 主选，HF speech-to-speech 作参考实现</h3>
+<div class="table-wrap"><table><tr><th>候选</th><th>得分</th><th>推荐</th><th>理由与风险</th></tr><tr><td>Pipecat</td><td>4.7</td><td><strong class="hl">主选</strong></td><td>frame 级编排、流式天然重叠、原生 WebRTC/SIP/PSTN 支持<span class="cite">[4]</span>；200+ 模型集成、可自托管、OpenTelemetry 集成<span class="cite">[2]</span>。风险：社区版企业级 SLA 需自维护，需建内部 fork 治理</td></tr><tr><td>HF speech-to-speech</td><td>4.0</td><td>参考实现/Realtime 网关</td><td>实现 OpenAI Realtime 协议 WebSocket + WebRTC，事件集完整（<code>response.cancel</code>/<code>session.update</code>）<span class="cite">[6]</span>，可作为兼容层。风险：默认依赖外部 LLM 后端，私有化需剥离</td></tr><tr><td>Qoder Voice / Qwen-Realtime</td><td>3.5</td><td>研究跟踪</td><td>端到端双工能力强，但作为托管/闭源能力，数据出域风险，不适合主链路</td></tr></table></div>
+<p><strong class="hl">结论</strong>：Pipecat 承担生产编排，HF s2s 作为 Realtime 协议兼容网关层，二者可并存。</p>
+<h3 id="s19">全双工底座：级联为主 + 实时语音大模型第一梯队跟踪</h3>
+<div class="table-wrap"><table><tr><th>候选</th><th>得分</th><th>推荐</th><th>理由与风险</th></tr><tr><td>级联 VAD+STT+LLM+TTS</td><td>4.5</td><td><strong class="hl">当前主选</strong></td><td>可观测、可降级、可替换，P95 1.5 s 有成熟路径</td></tr><tr><td>Qwen-Audio-3.0-Realtime</td><td>4.0</td><td>长期评估/疑难场景</td><td>双工控制、声纹级背景过滤、工具调用，能力新<span class="cite">[7]</span>。风险：模型体量、私有化推理成本、成熟度未经验证</td></tr><tr><td>Qwen3-Omni</td><td>3.8</td><td>实验档</td><td>端到端多模态，但推理链路不可拆，故障定位难</td></tr><tr><td>StepAudio 3 Realtime（阶跃星辰）</td><td>4.2</td><td>长期评估/重点跟踪</td><td>Artificial Analysis 语音推理 99.7%、对话动力学 98.9%，两项全球第一<span class="cite">[25]</span><span class="cite">[26]</span>；Think-While-Speaking 边说边推理。风险：私有化权重与昇腾适配未经验证</td></tr><tr><td>Qwen Audio 3.0 Realtime Plus（阿里）</td><td>4.2</td><td>长期评估（榜单第二）</td><td>语音推理 99.2%、对话动力学 98.4%，同榜最便宜一档<span class="cite">[25]</span>；与 Qwen 生态同源，私有化路径最清晰。风险：体量与私有化推理成本待 POC</td></tr><tr><td>豆包 Seed 全双工语音（字节）</td><td>3.9</td><td>体验对标基线</td><td>嘈杂环境与方言支持口碑较好。风险：以闭源托管为主，数据出域，不进主链路</td></tr></table></div>
+<p><strong class="hl">结论</strong>：不为了"技术先进"上全双工端到端模型；待其量化版本在昇腾跑通且 P95 优于级联方案再迁移；国产实时语音已形成第一梯队，跟踪优先级见下节。</p>
+<h3 id="s19b">实时语音大模型第一梯队（2026-10 更新）：国产三家各有亮点</h3>
+<p><strong class="hl">国产实时语音已进入第一梯队贴身混战，榜单第一与第二只差零点几个百分点。</strong>阶跃星辰 StepAudio 3 Realtime 在 Artificial Analysis 两项语音评测中同时拿到全球第一；阿里 Qwen Audio 3.0 Realtime Plus 紧随其后，TTS 方向稳居世界前三；字节豆包依托 Seed 全双工大模型，在嘈杂环境与方言支持上口碑较好。若看重综合榜单表现，优先关注阶跃与阿里的实时语音系列。</p>
+<div class="table-wrap"><table><tr><th style="width:22%">模型</th><th style="width:26%">关键指标（Artificial Analysis）</th><th style="width:18%">本方案定位</th><th>理由与风险</th></tr>
+<tr><td class="hl">StepAudio 3 Realtime（阶跃星辰）</td><td>语音推理 99.7%（Big Bench Audio）· 对话动力学 98.9%（Full Duplex Bench），两项全球第一；同系列 ASR 以 1.7% WER 并列第一<span class="cite">[25]</span><span class="cite">[26]</span></td><td>长期跟踪 / 重点对标</td><td>Think-While-Speaking 边说边推理、对话中异步工具调用，是"打断与停顿"体验的天花板。风险：私有化权重与昇腾适配未经验证；榜单成绩不等于方言与噪声场景表现</td></tr>
+<tr><td class="hl">Qwen Audio 3.0 Realtime Plus（阿里）</td><td>语音推理 99.2% · 对话动力学 98.4%，均列第二；输入音频 $0.0331/小时，同榜最便宜<span class="cite">[25]</span></td><td>长期跟踪（与 Qwen 生态同源）</td><td>与现有 Qwen3 / Qwen3-TTS / FunASR 同栈，一旦开源权重可私有化，迁移与调优成本最低。风险：体量与私有化推理成本仍需 POC 验证</td></tr>
+<tr><td>豆包 Seed 全双工语音（字节）</td><td>嘈杂环境、方言支持口碑较好（第三方对比口径）</td><td>体验对标基线</td><td>可作为"嘈杂/方言"场景能力参照与 badcase 对照。风险：以闭源托管为主，数据出域，不进主链路</td></tr>
+<tr><td class="hl">Qwen-Audio-Jev（阿里）</td><td>决策头范式：CHOICE 84.06%（MMSU）、NOUL EER 6.50%（VoxCeleb1-O 说话人验证）、SCORE NISQA 总体质量 Pearson 0.82；免自回归约 20× 推理加速<span class="cite">[29]</span></td><td>重点跟踪（决策层备选底座）</td><td>与 Qwen 生态同栈，可减少一套独立决策小模型。风险：权重开源状态未确认；20× 为特定推理设置口径；MELD 对话情绪识别仅 57.3%</td></tr>
+</table></div>
+<p><strong class="hl">结论</strong>：榜单只决定"跟踪谁"，不决定"用谁"。选型判据是<span class="hl">可私有化 + 可观测 + 可降级</span>，级联架构在这三条上仍然完胜；StepAudio 3 与 Qwen Audio 3.0 Realtime Plus 进入季度复评清单。</p>
+<h3 id="s19b2">决策头上车：Qwen-Audio-Jev 对决策路由层的意义</h3>
+<p><strong class="hl">Qwen-Audio-Jev（阿里，arXiv 2610.21614，2026-10）验证了本方案决策层的核心假设：高频音频判断不该走自回归生成。</strong>它在 Qwen-Audio-3.1-ASR-Flash-Next 底座上加装 Jev 决策头，读取问题前缀末尾的隐藏状态后直接输出类型化决策，免去逐 token 生成答案，论文口径推理加速约 20 倍<span class="cite">[29]</span><span class="cite">[30]</span>。</p>
+<div class="table-wrap"><table><tr><th style="width:14%">决策基元</th><th style="width:24%">机制</th><th style="width:32%">电信场景映射</th><th>实测锚点</th></tr>
+<tr><td class="hl">CHOICE</td><td>2–64 候选 Softmax 概率</td><td>意图分类（查话费/报修/咨询）、情绪识别、声学场景</td><td>MMSU 84.06%、MMAU-mini 78.70%</td></tr>
+<tr><td class="hl">NOUL</td><td>单值 Sigmoid 二元判断</td><td>声纹核身、用户插话检测、深度伪造鉴伪</td><td>VoxCeleb1-O 说话人验证 EER 6.50%</td></tr>
+<tr><td class="hl">SCORE</td><td>2–10 级概率加权期望</td><td>通话质量 MOS 在线评估、紧急度评分（转人工优先级）</td><td>NISQA 总体质量 Pearson 0.82</td></tr>
+</table></div>
+<p><strong class="hl">对时延预算的意义</strong>：§5 的 Pre-Router 当前价值是"规则/FAQ 直达省 300ms+"，决策头范式把这一跳推向极限——意图、核身、打断判定全部一次前向出概率，不生成一个 token。在百万 DAU 规模下这同时是算力杠杆：决策类请求占调用量大头，20 倍加速直接缩小 LLM 侧容量。</p>
+<p><strong class="hl">与自研 TinyBERT 决策层的关系</strong>：不是替换，是备选底座与对标基线。§5 当前用 TinyBERT 私有化复刻 Microsoft-Decision-1，胜在可控与轻量；若 Qwen-Audio-Jev 后续开放权重且可在昇腾私有化部署，则以 Qwen 同栈底座替换自研小模型，减少一套独立训练管线。双轨并行，季度复评。</p>
+<p><strong class="hl">风险与边界（POC 前不写进承诺）</strong>：① 权重开源状态未确认，方案红线是可私有化，暂列重点跟踪；② 20× 加速为论文特定推理设置口径，需自有语料复测；③ 多问题需分别前向，非一次推理答所有问题；④ MELD 对话情绪识别仅 57.3%，投诉情绪判断恰是其弱项，该场景不得单独依赖；⑤ In-the-Wild 鉴伪场景假阴性率 57.29%，只能作辅助信号。</p>
+<h3 id="s19c">闭源商用 API 的边界：Grok Voice 3.0 一类不入选</h3>
+<p>Grok Voice 3.0 是 xAI 的闭源商用语音 API：<strong class="hl">未开放模型权重与核心代码，没有传统意义上的开源地址，本地部署不可行</strong>，只能通过官方 Voice Agent API 调用，文档入口在 x.ai/news/grok-voice-3<span class="cite">[27]</span>。对本方案而言，这类闭源托管语音 API（Grok Voice 3.0、OpenAI Realtime、GPT-Live 系列等）在三条红线上同时不满足——<strong class="hl">数据不出域、全栈信创私有化、等保与备案可审计</strong>，因此一律不进入选型表，仅作能力对标参照：可以听它的 demo 定体验基线，不能把它的 API 接进生产链路。</p>
+
+<h3 id="s20">TTS：Qwen3-TTS 主选，CosyVoice 3.0 方言/离线专线，MOSS-Nano 兜底，AuK/VibeVoice 不作生产主用</h3>
+<div class="table-wrap"><table><tr><th>候选</th><th>得分</th><th>推荐</th><th>理由与风险</th></tr><tr><td>Qwen3-TTS（1.7B/0.6B）</td><td>4.8</td><td><strong class="hl">主选（在线）</strong></td><td>开源、dual-track 流式、首包 97 ms<span class="cite">[9]</span>、12Hz tokenizer、方言与音色控制，Apache 2.0。风险：1.7B 首包快但长语音资源占用需压测；低时延强依赖 FlashAttention2，昇腾需算子等价替换</td></tr><tr><td>CosyVoice 3.0（FunAudioLLM 0.5B / RL 版 1.5B）</td><td>4.4</td><td><strong class="hl">方言专线 + 离线预合成</strong></td><td>官方双流口径首包 150 ms、9 语言 + 18 种以上中文方言、支持中文拼音与英文 CMU 音素定点改读而无需重生成整句<span class="cite">[24]</span>，Apache 2.0；官方提供 vLLM 与 TensorRT-LLM 运行时<span class="cite">[23]</span>。在本方案中承接方言客群与固定话术离线渲染。风险：Flow Matching 迭代步数与时延强相关，昇腾需重调步数与精度；与 Qwen3-TTS 音色一致性要额外对齐</td></tr><tr><td>MOSS-TTS-Nano（0.1B）</td><td>4.5</td><td><strong class="hl">兜底</strong></td><td>原生 48 kHz 双声道、纯 CPU 可运行<span class="cite">[8]</span>，作为声卡/NPU 故障兜底。风险：0.1B 音质上限低于大模型，只用于降级</td></tr><tr><td>VibeVoice-Realtime-0.5B</td><td>2.5</td><td><strong class="hl">不主用</strong></td><td>首包约 300 ms、0.5B 轻量，但官方明确仅英文、研究用途、不支持实时语音转换与多语种生产<span class="cite">[10]</span>。风险：合规与语言双红线，仅作技术预研</td></tr><tr><td>AuK 1.5B</td><td>3.0</td><td>离线后处理</td><td>统一语音生成/编辑/增强/分离，支持零样本与指令控制<span class="cite">[11]</span>，但 1.5B 且主打编辑，不适合实时首包场景。风险：被当 TTS 主用会超预算</td></tr></table></div>
+<p><strong class="hl">结论</strong>：Qwen3-TTS 主用于在线实时链路，CosyVoice 3.0 承担方言专线与离线预合成，MOSS-Nano 作纯 CPU 兜底，三者构成 TTS 三引擎高可用；AuK 用于通话后质检/降噪/语音增强；VibeVoice 只进实验室。分工与互切规则按下列 §9.4 拓扑执行。</p>
+<h3 id="s21">TTS 三引擎落地拓扑：在线主链路 / 方言专线 / 离线预合成 / CPU 兜底</h3>
+<p><strong class="hl">不把 CosyVoice 与 Qwen3-TTS 做成"二选一"，而是按"时延敏感 / 发音管控 / 可用性"三维分工。</strong> Qwen3-TTS 赢在首包时延（97 ms）与流式结构，CosyVoice 3.0 赢在方言覆盖与音素级可控发音，MOSS-Nano 赢在纯 CPU 不依赖 NPU；三者并行部署，由编排层按场景与健康状况路由。</p>
+<div class="table-wrap"><table><tr><th>位置</th><th>引擎</th><th>职责</th><th>切换与兜底</th></tr><tr><td>在线热路径</td><td>Qwen3-TTS（1.7B/0.6B）</td><td>承载全部实时对话的句子级流式合成，首包 97 ms<span class="cite">[9]</span></td><td>P95 TTFB &gt; 300 ms 或昇腾拥塞 → 切 CosyVoice 在线副本 → 再降 MOSS-Nano</td></tr><tr><td>方言专线</td><td>CosyVoice 3.0 0.5B</td><td>按号码归属地/用户偏好路由到方言音色（川渝、粤语、东北、上海等 18 种以上<span class="cite">[24]</span>）</td><td>方言引擎不可用时回落通用音色，不阻断通话</td></tr><tr><td>离线预合成</td><td>CosyVoice 3.0 离线渲染</td><td>问候、身份核验、资费播报、转接提示等高频固定话术预渲染入对象存储，命中即播</td><td>缓存未命中降级到在线 TTS，不影响 E2E 承诺值</td></tr><tr><td>CPU 兜底</td><td>MOSS-TTS-Nano 0.1B</td><td>声卡/昇腾故障或 10% 降级流量专用，48 kHz 双声道纯 CPU<span class="cite">[8]</span></td><td>最后的逃生门，保证 TTS 永不成为单点</td></tr></table></div>
+<p><strong class="hl">为什么不让 CosyVoice 进在线主链路</strong>：其双向流式官方口径首包 150 ms<span class="cite">[24]</span>，叠加 §2 的 SIP 预算后 P95 会顶到 1.65 s 以上；而 Qwen3-TTS 的 97 ms 给 VAD 尾点与 LLM TTFT 留出了余量。反过来，Qwen3-TTS 在方言与"品牌词/金额读法定点控制"上不如 CosyVoice 的音素级改读能力<span class="cite">[24]</span>，所以方言客群与固定话术仍归 CosyVoice。<strong class="hl">代价必须写明</strong>：两套引擎的品牌音色要分别对齐与管理，是多出来的一份 LLMOps 与主观评测成本。</p>
+<h3 id="s21b">TTS 风格控制接口：LLM 输出结构化控制量，而非自然语言风格指令</h3>
+<p><strong class="hl">借鉴 SteerTTS（WhissleAI，23.1M 参数，CPU 实时 RTFx 4–8，首包约 0.5 s）的 z-score 控制抽象，但本体不入选。</strong>该模型把每个声学控制量定义为相对"中性语音"的标准化偏移，LLM 在对话中只需输出 <code>rate=1.0</code>、<code>f0_iqr=1.5</code> 这类数值即可让语气随上下文变化，且偏移可解释、可审查<span class="cite">[28]</span>。不入选的原因是两条硬门槛，与本方案对 VibeVoice 的排除逻辑一致：<strong class="hl">仅英语</strong>（电信主场景为中文及方言）、<strong class="hl">权重 CC BY-NC 4.0 仅限非商用</strong>（本方案全部组件须可商用）。</p>
+<div class="table-wrap"><table><tr><th style="width:14%">控制量</th><th style="width:22%">含义</th><th>电信场景用法</th></tr>
+<tr><td>rate</td><td>语速 z-score</td><td>老年/听障客户自动降至 -0.5（放慢一档），年轻人保持 0</td></tr>
+<tr><td>loudness</td><td>响度 z-score</td><td>车载/嘈杂环境 +0.3，夜间 -0.2</td></tr>
+<tr><td>pitch range</td><td>音高范围</td><td>投诉/致歉场景收窄，降低"激动感"</td></tr>
+<tr><td>pauses</td><td>句间停顿</td><td>金额、号码、证件号播报后强制 +200 ms，降低误听</td></tr>
+<tr><td>breathiness</td><td>气声比例</td><td>暂不使用，保留扩展位</td></tr>
+</table></div>
+<p><strong class="hl">与 CosyVoice 音素级改读的分工</strong>：CosyVoice 管"发音内容管控"（品牌词、金额、号码的定点读法），z-score 控制管"表达风格管控"（语速、情绪、停顿），两者作用于不同层，叠加使用不冲突。</p>
+<p><strong class="hl">为什么不直接用自然语言控制</strong>（如 prompt 写"请用温柔的语气"）：① 不可审计——投诉回放时无法复现当时的语气参数，责任界定缺乏依据；② 不可回归——风格 prompt 的任何改动会静默影响全部会话的音色一致性；③ 无兜底——自然语言指令可能被 LLM 发挥成极端值，数值控制可 clamp 到 [-2, +2]。</p>
+<p><strong class="hl">落地方式</strong>：编排层定义控制量 schema（JSON），LLM 按 schema 输出，编排层翻译为 Qwen3-TTS 与 CosyVoice 各自的指令/参考音频参数；控制量随会话日志落库，作为 A/B 实验、投诉复盘与主观评测的回归依据。这是"模型行为可数值化驾驶"思想在本方案中唯一落地的部分，不引入任何新模型。</p>
+<h3 id="s22">Agent 编排：自研持久化层 + Temporal 参考，ax 等声明式框架暂不入生产</h3>
+<div class="table-wrap"><table><tr><th>候选</th><th>得分</th><th>推荐</th><th>理由与风险</th></tr><tr><td>自研（基于 Kafka + 达梦 + 状态机）</td><td>4.4</td><td><strong class="hl">主选</strong></td><td>可控、合规、与工单系统深度对齐，转人工/工单闭环可审计</td></tr><tr><td>Temporal</td><td>4.3</td><td>复杂长时任务参考/引入</td><td>可暂停恢复、等待人工审批、历史可回放、支持自托管<span class="cite">[21]</span>。风险：引入新依赖栈，运维复杂度上升</td></tr><tr><td>ax 等声明式 Agent 框架</td><td>3.0</td><td><strong class="hl">不入选</strong></td><td>声明式编排与 suspend/resume 思想契合，但生态年轻、API 破坏性变更风险高<span class="cite">[22]</span>，且引入整套新栈。风险：API 不稳定 + 供应链风险，不适合 6–12 月交付节奏</td></tr></table></div>
+<p><strong class="hl">结论</strong>：吸收声明式框架的"任务原语 + 暂停恢复"思想，用自研状态机实现；若长时任务（工单跨天、人工审批）复杂度超预期，再引入 Temporal 作为持久化层。</p>
+<h2 id="s23">10. 落地路线图</h2>
+<p><strong class="hl">节奏：POC 4–6 周 → 试点 2–3 月 → 灰度 3–6 月 → 全量 6–12 月。</strong> 每段有准入准出，不达指标不进下一阶段。</p>
+<h3 id="s24">POC（第 1–6 周）</h3>
+<p><strong class="hl">目标</strong>：把纸面预算变成实测数字。准入条件：拿到 30 万条脱敏电信历史通话、方言覆盖 ≥ 20 种、昇腾 8 卡可用。交付物：单链路时延分布、ASR CER 按方言分档、LLM TTFT 随并发曲线、MOSS-Nano 兜底可行性、信创 OS 编译通过清单。</p>
+<p><strong class="hl">准出指标</strong>：WebRTC E2E P95 ≤ 1.35 s、SIP P95 ≤ 1.6 s（SIP 1.5 s 在试点达标）、自助解决率 ≥ 65%、方言 CER ≤ 8%、无模型 OOM、可观测四层指标齐全。</p>
+<p><strong class="hl">风险与回滚</strong>：若昇腾适配任一算子不通过，立即退回 CUDA 等价机型做对比基线，不阻塞整体进度；若 Qwen3-TTS 长语音显存爆或昇腾 FlashAttention2 等价替换后时延不达标，先切 CosyVoice 0.5B 在线副本，仍不达标再切 MOSS-Nano 兜底方案。</p>
+<h3 id="s25">试点（第 2–4 月）</h3>
+<p><strong class="hl">范围</strong>：选 2–3 个地市、3 个高量意图（查话费、宽带报修、套餐咨询）、日 1 万通、全部走 WebRTC 与 APP，SIP 只做镜像不切量。准入：POC 全部准出 + 达梦主备跑通 7 天。</p>
+<p><strong class="hl">准出指标</strong>：E2E P95 ≤ 1.5 s（SIP）、转人工率 ≤ 35%、用户打断误触发率 ≤ 5%、工单闭环成功率 ≥ 90%、投诉量不高于原 IVR 基线、等保测评通过。</p>
+<p><strong class="hl">回滚</strong>：一键把试点地市流量回原 IVR/人工队列，会话上下文导出到旧系统。</p>
+<h3 id="s26">灰度（第 4–10 月）</h3>
+<p><strong class="hl">策略</strong>：按省/大区 hash 分片，5%→20%→50%→100%，每档稳定 2 周。同步上线决策路由三档阈值校准、TTS 三引擎（在线主用 + 方言/离线专线 + CPU 兜底）、MOSS-Nano 兜底、跨 AZ 切流演练。准入：试点准出 + 多 AZ 故障演练通过。</p>
+<p><strong class="hl">准出指标</strong>：峰值并发达基线 7365 路、P95 E2E ≤ 1.5 s、可用性 ≥ 99.9%、无重大数据出域事件。</p>
+<h3 id="s27">全量（第 10–12 月）</h3>
+<p><strong class="hl">范围</strong>：全国分片、SIP/WebRTC/APP 三入口全量、1000 万 DAU 扩容档就绪。准入：灰度准出 + 等保三级/四级测评结论 + 备案完成。</p>
+<p><strong class="hl">准出指标</strong>：可用性 ≥ 99.99%、E2E P95 ≤ 1.5 s、日均千万级调用承载。</p>
+<p><strong class="hl">组织配置建议</strong>：按总负责人、架构师（媒体面/模型面）、信创适配组、算法组（ASR/TTS/LLM-RAG/决策）、平台组（K8s/可观测/安全）、测试组、SRE、产品与运营分组配置，核心团队数十人级 + 外包测试支持；信创适配、模型量化与端侧轻量化为关键岗位方向。</p>
+<h2 id="s28">11. 成本估算（TCO）</h2>
+<p><strong class="hl">成本模型方法论：按 100 万 DAU 基线、当年价格水平，将年度成本分为服务器 capex（按 5 年摊销）、软件与授权、人力、安全与测评等类别加总得年度 TCO，再按年通话量折算单通成本，并与人工坐席单通成本（3–8 元量级）对比，评估 AI 自助替代的收益空间。</strong>具体金额涉及商务口径，开源版从略。</p>
+<h2 id="s29">12. 风险清单与应对</h2>
+<div class="table-wrap"><table><tr><th>风险</th><th>等级</th><th>影响</th><th>应对措施</th></tr><tr><td>模型幻觉（金额/套餐/政策答错）</td><td>高</td><td>用户投诉、资损</td><td>事实类带 sourceId 与 CRM 一致性校验、RAG 取原文、超域转人工、输出双通道</td></tr><tr><td>方言与噪声识别不准</td><td>高</td><td>转人工率上升</td><td>复用星辰 40+ 方言能力、2-pass 流式+离线重识、按省分引擎、badcase 回流热词</td></tr><tr><td>端到端延迟抖动超 1.5 s</td><td>高</td><td>用户体验崩塌</td><td>流式重叠、prefix cache、投机解码、两档降级、L1 先播提示句</td></tr><tr><td>昇腾卡供给与 CANN 适配进度</td><td>高</td><td>交付延期</td><td>海光 DCU 备选、锁版本矩阵、算子白名单、POC 先跑算子兼容</td></tr><tr><td>声纹克隆/深度伪造</td><td>高</td><td>身份冒用、欺诈</td><td>声纹只用于说话人锁定不做认证、TTS 音色白名单、禁止实时变声、AI 生成标识</td></tr><tr><td>数据出域</td><td>高</td><td>合规一票否决</td><td>全栈私有化、数据流向审计、对外只出脱敏摘要、备案完备</td></tr><tr><td>等保测评不通过</td><td>中</td><td>无法上线</td><td>达梦等保四级底座<span class="cite">[15]</span>、国密、三员分权、WORM 审计、提前 6 个月启动测评</td></tr><tr><td>全双工端到端模型供应链不稳</td><td>中</td><td>技术路线受阻</td><td>级联方案作主链路，端到端模型仅研究跟踪，不绑定交付</td></tr><tr><td>ax 等声明式框架 API 破坏性变更</td><td>中</td><td>重构成本</td><td>不引入生产，只吸收设计思想，自研状态机</td></tr><tr><td>工单工具非幂等导致重复办理</td><td>高</td><td>资损</td><td>读多写少、写操作需授权码、Saga 补偿、状态机幂等键</td></tr><tr><td>Qwen3-TTS 低时延依赖 FlashAttention2，昇腾无对应算子</td><td>中</td><td>首包退化至 0.3 倍实时，TTS 反成瓶颈</td><td>POC 先跑注意力算子等价替换与精度回归；不达标回退 0.6B 以并发换时延；CosyVoice 在线副本作互切备份</td></tr><tr><td>多 TTS 引擎音色不一致</td><td>中</td><td>品牌音色漂移、用户感知割裂</td><td>统一参考音频与音色白名单、每季度 MOS 对齐评测、同一 callId 内禁止跨引擎切换音色</td></tr><tr><td>突发流量超 30 秒扩容窗口</td><td>中</td><td>服务雪崩</td><td>预测扩容 + 缓冲队列 + 三档降级 + 部分转人工</td></tr><tr><td>GPU/NPU 单卡故障导致会话中断</td><td>中</td><td>通话掉线</td><td>多副本无状态、会话 2 秒 checkpoint、切流 5 分钟内完成</td></tr><tr><td>多 Region 数据一致性</td><td>中</td><td>上下文丢失</td><td>会话钉死单 Region、跨 Region 只迁整片、状态异步对账</td></tr><tr><td>运营商入网互联互通测试周期</td><td>中</td><td>SIP 割接延期（入网测试通常 3–6 个月）</td><td>试点期即启动入网测试申请，SIP 先做镜像不切量，里程碑预留缓冲</td></tr><tr><td>SBC 商用 License 按并发路数计费</td><td>中</td><td>License 年费易被低估</td><td>POC 阶段向 2 家以上 SBC 厂商询价，按实际并发路数纳入成本估算</td></tr></table></div>
+<p><strong class="hl">诚实边界</strong>：① 所有吞吐与容量均为架构估算，未做真实电信语料回灌，实际可能偏差 ±40%；② 昇腾 CANN 与 vLLM-Ascend 的量化、投机解码在最新版本仍有已知问题（如 PD 分离可能内存泄漏、Aclgraph 与 DP/EP 不兼容）<span class="cite">[16]</span>，生产灰度必须逐个特性开关验证；③ Qwen3-TTS、MOSS-Nano 的开源许可与商用条款需法务逐项确认，不能仅凭"开源"推定可商用。</p>
+<h2 id="s30">13. 一页纸摘要</h2>
+<p><strong class="hl">架构一句话</strong>：百万 DAU 下用"Pipecat frame 级流式编排 + FunASR + Qwen3-TTS/CosyVoice3 TTS 三引擎 + 私有 Qwen3 分层推理 + 自研决策路由"，在信创全栈私有化环境中，把 P95 端到端延迟压到 1.5 秒以内。</p>
+<p><strong class="hl">关键数字</strong>：日均千万级调用、峰值 750 等效 QPS、峰值约 7365 并发会话、E2E P95 ≤ 1.5 s（WebRTC 1.35 s / SIP 1.5 s）、可用性 ≥ 99.99%（年停机 &lt; 52.6 分钟）；100 万 DAU 基线的算力与成本规模涉及商务口径，开源版从略。</p>
+<p><strong class="hl">三个设计亮点</strong>：</p>
+<ol class="lst"><li><strong class="hl">把"日均千万级 API 调用"落到可立项的工程口径</strong>：用调用量→DAU→并发会话→请求窗口的容量数学，得出峰值 750 QPS 与 7365 并发会话，同时保留千万级 DAU 的水平分片路径；</li><li><strong class="hl">延迟预算的每一跳都有死线且允许并行重叠</strong>，VAD 尾点、ASR interim prefill、句子级 TTS 三处优化叠加才让 1.5 秒可兑现；</li><li><strong class="hl">决策模型范式复刻而非托管搬运</strong>，用 TinyBERT/BERT-wwm 在 30 ms 内完成路由、分类、护栏，避免每条话都烧一次大模型，同时规避数据出域。</li></ol>
+<p><strong class="hl">两个诚实边界</strong>：一是全部资源与成本数字均为架构估算，真实值须以电信方言/噪声语料 POC 实测校准；二是全双工端到端模型（StepAudio 3、Qwen Audio 3.0 Realtime Plus、豆包 Seed 等）当前仅作长期评估，生产主链路坚定采用可观测可降级的级联架构，不把技术先进性置于可交付性之上。</p>
+<h2 id="s31">引用来源</h2>
+<p><span class="cite">[1]</span> <a href="https://techcommunity.microsoft.com/blog/azure-ai-foundry-blog/introducing-microsoft-decision-1-in-microsoft-foundry-for-decision-and-classific/4562742" target="_blank" rel="noopener">https://techcommunity.microsoft.com/blog/azure-ai-foundry-blog/introducing-microsoft-decision-1-in-microsoft-foundry-for-decision-and-classific/4562742</a></p>
+<blockquote><p>"Microsoft-Decision-1 is a model for fast decision-making" — 支持 agent controls、model routing、intent analysis、safety screening。</p></blockquote>
+<p><span class="cite">[2]</span> <a href="http://www.pipecat.ai/" target="_blank" rel="noopener">http://www.pipecat.ai/</a></p>
+<blockquote><p>"Multi-Modal Orchestration Coordinate voice, video, text, and images in one pipeline, with frame-level control over every step of the conversation."</p></blockquote>
+<p><span class="cite">[3]</span> <a href="https://funasr.com" target="_blank" rel="noopener">https://funasr.com</a></p>
+<blockquote><p>"配合GPU推理,可以将推理效率提升10倍,从而将语音识别云服务的机器成本降低接近10倍。"</p></blockquote>
+<p><span class="cite">[4]</span> <a href="https://www.pipecat.ai" target="_blank" rel="noopener">https://www.pipecat.ai</a></p>
+<blockquote><p>"Frames stream through the pipeline as they're produced. No stage waits on the one before it."</p></blockquote>
+<p><span class="cite">[5]</span> <a href="https://www.chinatelecom.com.cn/ct/news/rgzn/154044.html" target="_blank" rel="noopener">https://www.chinatelecom.com.cn/ct/news/rgzn/154044.html</a></p>
+<blockquote><p>"接入星辰大模型以后,万号智能客服秒懂30种方言,自然流畅地服务用户,实现日均处理约200万通电话。"</p></blockquote>
+<p><span class="cite">[6]</span> <a href="https://github.com/huggingface/speech-to-speech" target="_blank" rel="noopener">https://github.com/huggingface/speech-to-speech</a></p>
+<blockquote><p>"The server implements the core Realtime event set: input_audio_buffer.append, session.update, response.create, and response.cancel."</p></blockquote>
+<p><span class="cite">[7]</span> <a href="https://i.ifeng.com/c/8uitzwbrrp2" target="_blank" rel="noopener">https://i.ifeng.com/c/8uitzwbrrp2</a></p>
+<blockquote><p>"内置多模态双工控制模型,支持声纹级背景过滤,嘈杂环境下对话依然流畅,不易被打断。"</p></blockquote>
+<p><span class="cite">[8]</span> <a href="http://openmoss.github.io/MOSS-TTS-Nano-Demo" target="_blank" rel="noopener">http://openmoss.github.io/MOSS-TTS-Nano-Demo</a></p>
+<blockquote><p>"MOSS-TTS-Nano A multilingual tiny speech generation model for realtime voice cloning, CPU-friendly deployment."</p></blockquote>
+<p><span class="cite">[9]</span> <a href="https://github.com/QwenLM/Qwen3-TTS" target="_blank" rel="noopener">https://github.com/QwenLM/Qwen3-TTS</a></p>
+<blockquote><p>"Qwen3-TTS breaks the '100ms barrier' with a first-packet latency of just 97ms."</p></blockquote>
+<p><span class="cite">[10]</span> <a href="https://github.com/microsoft/VibeVoice" target="_blank" rel="noopener">https://github.com/microsoft/VibeVoice</a></p>
+<blockquote><p>VibeVoice-Realtime-0.5B 为实时 TTS 研究模型，官方说明仅支持英文、定位研究用途，不进多语种生产。</p></blockquote>
+<p><span class="cite">[11]</span> <a href="https://www.teleai.com.cn/" target="_blank" rel="noopener">https://www.teleai.com.cn/</a></p>
+<blockquote><p>"星辰语音大模型 基于电信万号方言语音数据积累,多任务、多语言联合建模方式。"</p></blockquote>
+<p><span class="cite">[12]</span> <a href="https://www.cet.com.cn/itpd/itxw/10522061.shtml" target="_blank" rel="noopener">https://www.cet.com.cn/itpd/itxw/10522061.shtml</a></p>
+<blockquote><p>"2026年,AI合规已从'选择题'变成'必答题'。"（算法备案、大模型备案、AI应用登记三轨制）</p></blockquote>
+<p><span class="cite">[13]</span> <a href="http://mp.weixin.qq.com/s?src=11&amp;timestamp=1791717144&amp;ver=7020&amp;signature=fxLaHsIt2wCtaRexDgt4SBeQbt0tmETP3GSF5ZIsxVsEloT2zcBsmv0xikjwOw575Qa0xNXf155LH8Zs8dliUfawdqqAn1U5*kNDAl7lLB-h*g1H3SL9eJQSTbw1a-*" target="_blank" rel="noopener">http://mp.weixin.qq.com/s?src=11&amp;timestamp=1791717144&amp;ver=7020&amp;signature=fxLaHsIt2wCtaRexDgt4SBeQbt0tmETP3GSF5ZIsxVsEloT2zcBsmv0xikjwOw575Qa0xNXf155LH8Zs8dliUfawdqqAn1U5*kNDAl7lLB-h*g1H3SL9eJQSTbw1a-*</a></p>
+<blockquote><p>"本次测评公告首次集中纳入人工智能训练推理芯片,标志着国产AI算力正式从单点技术突破,迈入关键行业安全可靠选型。"</p></blockquote>
+<p><span class="cite">[14]</span> <a href="https://www.ctyun.cn/partners/dongsheng/customer-adapt" target="_blank" rel="noopener">https://www.ctyun.cn/partners/dongsheng/customer-adapt</a></p>
+<blockquote><p>"可为央国企用户提供飞腾/鲲鹏/海光/龙芯等多种弹性云主机资源,以及申威/兆芯裸金属服务器资源。"</p></blockquote>
+<p><span class="cite">[15]</span> <a href="https://eco.dameng.com/community/training/1c28e36128444779cdace3ba8399f078" target="_blank" rel="noopener">https://eco.dameng.com/community/training/1c28e36128444779cdace3ba8399f078</a></p>
+<blockquote><p>"DM是国内首款通过等保四级(EAL4+)认证的数据库。"（全链路数据加密、国密、三权分立、审计日志）</p></blockquote>
+<p><span class="cite">[16]</span> <a href="https://vllm-ascend.readthedocs.io/en/v0.9.1/user_guide/release_notes.html" target="_blank" rel="noopener">https://vllm-ascend.readthedocs.io/en/v0.9.1/user_guide/release_notes.html</a></p>
+<blockquote><p>"Automatic prefix caching and chunked prefill feature is supported. Speculative decoding feature works with Ngram and MTP method."</p></blockquote>
+<p><span class="cite">[17]</span> <a href="https://techcommunity.microsoft.com/blog/azure-ai-foundry-blog/introducing-microsoft-decision-1-in-microsoft-foundry-for-decision-and-classific/4562742" target="_blank" rel="noopener">https://techcommunity.microsoft.com/blog/azure-ai-foundry-blog/introducing-microsoft-decision-1-in-microsoft-foundry-for-decision-and-classific/4562742</a></p>
+<blockquote><p>"Rather than producing an open-ended response, they evaluate a defined set of possibilities and return structured signals that an application can use to take action."</p></blockquote>
+<p><span class="cite">[18]</span> <a href="https://www.funasr.com/en/blog/funasr-realtime-streaming-asr.html" target="_blank" rel="noopener">https://www.funasr.com/en/blog/funasr-realtime-streaming-asr.html</a></p>
+<blockquote><p>"delivering real-time text at ~600 ms latency — and it runs on CPU."</p></blockquote>
+<p><span class="cite">[19]</span> <a href="https://gzw.sc.gov.cn/scsgzw/CU23020301/2026/2/12/a372c9e556a6451ca45ca00979e53b41.shtml" target="_blank" rel="noopener">https://gzw.sc.gov.cn/scsgzw/CU23020301/2026/2/12/a372c9e556a6451ca45ca00979e53b41.shtml</a></p>
+<blockquote><p>"10000号已全面实现'AI+人工'全语音服务覆盖,智能语音客服占比达93%。"</p></blockquote>
+<p><span class="cite">[20]</span> <a href="https://auk-project.github.io/?utm_source=alphasignal" target="_blank" rel="noopener">https://auk-project.github.io/?utm_source=alphasignal</a></p>
+<blockquote><p>"AuK is a 1.5B-parameter foundational model that answers a natural-language instruction with edited or generated audio."</p></blockquote>
+<p><span class="cite">[21]</span> <a href="https://temporal.io" target="_blank" rel="noopener">https://temporal.io</a></p>
+<blockquote><p>Temporal：durable execution 工作流引擎——可暂停恢复、等待人工审批、历史可回放，支持自托管。</p></blockquote>
+<p><span class="cite">[22]</span> <a href="https://github.com/ax-llm/ax" target="_blank" rel="noopener">https://github.com/ax-llm/ax</a></p>
+<blockquote><p>Ax：声明式签名构建 Agent 的框架（生态年轻，API 仍在快速演进，破坏性变更风险高）。</p></blockquote>
+<p><span class="cite">[23]</span> <a href="https://github.com/FunAudioLLM/CosyVoice" target="_blank" rel="noopener">https://github.com/FunAudioLLM/CosyVoice</a></p>
+<blockquote><p>CosyVoice 全栈能力（推理/训练/部署）：vLLM 支持、Triton TensorRT-LLM runtime 支持、CosyVoice 3.0 模型与评测集；Apache-2.0。</p></blockquote>
+<p><span class="cite">[24]</span> <a href="https://huggingface.co/FunAudioLLM/CosyVoice2-0.5B" target="_blank" rel="noopener">https://huggingface.co/FunAudioLLM/CosyVoice2-0.5B</a></p>
+<blockquote><p>"Bi-Streaming: Support both text-in streaming and audio-out streaming, and achieves latency as low as 150ms."（license: apache-2.0；支持中文拼音与英文 CMU 音素的发音改写，无需重生成整句）</p></blockquote>
+<p><span class="cite">[25]</span> <a href="https://artificialanalysis.ai/speech-to-speech" target="_blank" rel="noopener">https://artificialanalysis.ai/speech-to-speech</a></p>
+<blockquote><p>"StepAudio 3 Realtime leads with a speech reasoning score of 99.7%... Qwen Audio 3.0 Realtime Plus follows at 99.2%."（Speech to Speech 榜单：Big Bench Audio / Full Duplex Bench，98.9% vs 98.4%）</p></blockquote>
+<p><span class="cite">[26]</span> <a href="https://www.theblockbeats.info/flash/367178" target="_blank" rel="noopener">https://www.theblockbeats.info/flash/367178</a></p>
+<blockquote><p>阶跃星辰发布 StepAudio 3，一口气上线 Realtime、ASR、TTS、Gen 和 Music 五款语音模型；ASR 以 1.7% WER 并列第一。</p></blockquote>
+<p><span class="cite">[27]</span> <a href="https://x.ai/news/grok-voice-3" target="_blank" rel="noopener">https://x.ai/news/grok-voice-3</a></p>
+<blockquote><p>Grok Voice 3.0 官方 Voice Agent API（闭源商用：xAI 未开放模型权重与核心代码，无开源地址，不支持本地部署）。</p></blockquote>
+
+<p><span class="cite">[28]</span> <a href="https://huggingface.co/WhissleAI/steer-tts" target="_blank" rel="noopener">https://huggingface.co/WhissleAI/steer-tts</a></p>
+<blockquote><p>"A small English text-to-speech model that you steer with numbers. Each control is a z-score relative to the chosen voice's own neutral speech."（SteerTTS v1：23.1M 参数，12 项 z-score 声学控制，CPU 实时 RTFx 4–8；仅英语，权重 CC BY-NC 4.0 非商用，package code MIT）</p></blockquote>
+
+<p><span class="cite">[29]</span> <a href="https://arxiv.org/abs/2610.21614" target="_blank" rel="noopener">https://arxiv.org/abs/2610.21614</a></p>
+<blockquote><p>"Qwen-Audio-Jev: A Unified Interface for Audio Decisions... augmenting Qwen-Audio-3.1-ASR-Flash-Next with a dedicated Jev decision head... achieves an approximately 20x inference speedup."（阿里巴巴，2026-10-15：CHOICE/NOUL/SCORE 三决策基元，18 项标注配置评估）</p></blockquote>
+<p><span class="cite">[30]</span> <a href="https://mp.weixin.qq.com/s/Cb07n6Gf80G64aoKH3cBig" target="_blank" rel="noopener">https://mp.weixin.qq.com/s/Cb07n6Gf80G64aoKH3cBig</a></p>
+<blockquote><p>智猩猩《阿里把 Jev 用在音频大模型上，推理速度暴涨 20 倍！》（2026-10-22，中文解读，数据与论文一致）</p></blockquote>
+
+  <div class="footer">
+    中国电信 10000 号私有化信创 AI 语音对话架构方案 · V2 修订版 · 2026-10-13 架构评审修正<br>
+    所有资源与成本数字均为架构估算，须以 POC 实测校准
+  </div>
+</div>
+
+</body>
+</html>
