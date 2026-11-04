@@ -109,6 +109,7 @@
 <li class="toc-h3"><a href="#s19b">实时语音大模型第一梯队（2026-10 更新）</a></li>
 <li class="toc-h3"><a href="#s19b2">决策头上车：Qwen-Audio-Jev 对决策路由层的意义</a></li>
 <li class="toc-h3"><a href="#s19c">闭源商用 API 的边界：Grok Voice 3.0 一类不入选</a></li>
+<li class="toc-h3"><a href="#s19d">全双工交互系统对标：MOSS-Live（模思）不进主干</a></li>
 <li class="toc-h3"><a href="#s20">TTS：Qwen3-TTS 主选，CosyVoice 3.0 方言/离线专线，MOSS-Nano 兜底，AuK/VibeVoice 不作生产主用</a></li>
 <li class="toc-h3"><a href="#s21">TTS 三引擎落地拓扑：在线主链路 / 方言专线 / 离线预合成 / CPU 兜底</a></li>
 <li class="toc-h3"><a href="#s21b">TTS 风格控制接口：结构化控制量（z-score 范式）</a></li>
@@ -530,6 +531,75 @@
 <h3 id="s19c">闭源商用 API 的边界：Grok Voice 3.0 一类不入选</h3>
 <p>Grok Voice 3.0 是 xAI 的闭源商用语音 API：<strong class="hl">未开放模型权重与核心代码，没有传统意义上的开源地址，本地部署不可行</strong>，只能通过官方 Voice Agent API 调用，文档入口在 x.ai/news/grok-voice-3<span class="cite">[27]</span>。对本方案而言，这类闭源托管语音 API（Grok Voice 3.0、OpenAI Realtime、GPT-Live 系列等）在三条红线上同时不满足——<strong class="hl">数据不出域、全栈信创私有化、等保与备案可审计</strong>，因此一律不进入选型表，仅作能力对标参照：可以听它的 demo 定体验基线，不能把它的 API 接进生产链路。</p>
 
+<h3 id="s19d">全双工交互系统对标：MOSS-Live（模思）不进主干，作基线 + 评估对象</h3>
+<p>MOSS-Live 是模思智能（复旦邱锡鹏团队 / 上海创智学院背景，2026-11 发布）的全双工实时交互系统。它与方案内的 MOSS-TTS-Nano（CPU 兜底 TTS）<strong class="hl">同源</strong>——同属 OpenMOSS 体系。前者是"整套端到端全双工系统"，后者只是"单一 TTS 引擎"，两者处在不同层。</p>
+<p><strong class="hl">它是什么层</strong>：前台交互模型（实时全双工）+ 后台推理模型（异步复杂任务）前后台协同；支持视频 / 屏幕共享 / 环境声多模态、工具调用、流式同传；已开放 API（platform.moss.cn），限时免费。公开资料<strong class="hl">未确认开源权重或私有化部署版本</strong>。</p>
+<div style="margin:14px 0;text-align:center"><svg viewBox="0 0 680 360" xmlns="http://www.w3.org/2000/svg" font-family="'Segoe UI',-apple-system,'Microsoft YaHei',sans-serif">
+  <rect x="0" y="0" width="680" height="360" fill="#ffffff"/>
+  <text x="24" y="28" font-size="16" font-weight="700" fill="#1f2a44">MOSS-Live 在电信语音架构中的层级定位</text>
+  <text x="24" y="48" font-size="12" fill="#64748b">不同层：外部可选能力 vs 主干级联零件箱（不替换）</text>
+
+  <rect x="24" y="64" width="632" height="74" rx="10" fill="#fff7ed" stroke="#f59e0b" stroke-width="1.5" stroke-dasharray="6 4"/>
+  <text x="38" y="84" font-size="12" font-weight="700" fill="#b45309">外部可选层（对标 / 评估对象）</text>
+  <rect x="150" y="92" width="372" height="38" rx="8" fill="#f97316" fill-opacity="0.12" stroke="#f97316" stroke-width="1.2"/>
+  <text x="166" y="109" font-size="12.5" font-weight="700" fill="#c2410c">MOSS-Live（模思 · 2026-11）</text>
+  <text x="166" y="124" font-size="10.5" fill="#9a3412">端到端全双工系统 · 单一 API · 未确认私有化</text>
+  <text x="532" y="115" font-size="10.5" fill="#9a3412">← 黑盒交付</text>
+
+  <line x1="24" y1="150" x2="656" y2="150" stroke="#cbd5e1" stroke-width="1"/>
+  <text x="24" y="170" font-size="12" font-weight="700" fill="#1f2a44">电信方案主干（级联 · 可组合 · 信创私有化）</text>
+
+  <g font-size="11">
+    <rect x="24" y="182" width="96" height="46" rx="7" fill="#eef2ff" stroke="#6366f1" stroke-width="1.2"/>
+    <text x="36" y="203" font-weight="700" fill="#3730a3">VAD</text>
+    <text x="36" y="219" fill="#4338ca">FSMN-VAD</text>
+    <text x="124" y="209" fill="#64748b">→</text>
+    <rect x="142" y="182" width="96" height="46" rx="7" fill="#eef2ff" stroke="#6366f1" stroke-width="1.2"/>
+    <text x="154" y="203" font-weight="700" fill="#3730a3">ASR</text>
+    <text x="154" y="219" fill="#4338ca">FunASR</text>
+    <text x="242" y="209" fill="#64748b">→</text>
+    <rect x="260" y="182" width="96" height="46" rx="7" fill="#eef2ff" stroke="#6366f1" stroke-width="1.2"/>
+    <text x="272" y="203" font-weight="700" fill="#3730a3">编排</text>
+    <text x="272" y="219" fill="#4338ca">Pipecat</text>
+    <text x="360" y="209" fill="#64748b">→</text>
+    <rect x="378" y="182" width="104" height="46" rx="7" fill="#eef2ff" stroke="#6366f1" stroke-width="1.2"/>
+    <text x="390" y="203" font-weight="700" fill="#3730a3">自有LLM</text>
+    <text x="390" y="219" fill="#4338ca">Qwen3/星辰</text>
+    <text x="486" y="209" fill="#64748b">→</text>
+    <rect x="504" y="182" width="152" height="46" rx="7" fill="#eef2ff" stroke="#6366f1" stroke-width="1.2"/>
+    <text x="516" y="201" font-weight="700" fill="#3730a3">TTS 三引擎</text>
+    <text x="516" y="216" fill="#4338ca">Qwen3-TTS·Cosy·MOSS</text>
+    <text x="516" y="230" font-size="9.5" fill="#6366f1">（MOSS 即 MOSS-TTS-Nano 兜底）</text>
+  </g>
+  <text x="24" y="252" font-size="11" fill="#475569">全双工近似实现：VAD + 双闸门（Pre-Router / Post-Guardrail）+ 反向取消通道（伪全双工）</text>
+
+  <line x1="336" y1="130" x2="336" y2="178" stroke="#f59e0b" stroke-width="1.3" stroke-dasharray="5 4"/>
+  <text x="344" y="158" font-size="10" fill="#b45309">对标 / 评估（不作替换）</text>
+
+  <text x="24" y="288" font-size="11" fill="#475569">关系：MOSS-Live 把 ASR/VAD/全双工控制/LLM/TTS/工具调用端到端一体化；主干保留对各模块的独立控制与信创私有化。</text>
+  <text x="24" y="308" font-size="11" fill="#475569">定位：① 全双工能力的验收基线（驱动双闸门升级）　② 可选外采 / 待确认私有化版本（MOSS 家族协同）。</text>
+  <text x="24" y="336" font-size="10.5" fill="#94a3b8">数据来源：模思智能 MOSS-Live 发布（2026-11）、Full-Duplex-Bench / τ-Voice 公开基准。</text>
+</svg></div>
+<p><strong class="hl">核心区别</strong>：现有方案是<strong class="hl">可拼装的零件箱</strong>，MOSS-Live 是把 ASR/VAD/全双工控制/LLM/TTS/工具调用<strong class="hl">端到端一体化</strong>的单一 API，不在同一层。</p>
+<div class="table-wrap"><table><tr><th>指标</th><th>MOSS-Live</th><th>主要竞品区间</th><th>说明</th></tr>
+<tr><td>停顿抢话率（FDB v1，不含附和）</td><td><strong class="hl">1.44%</strong></td><td>3.18%–14.29%（Qwen Audio 3.0 Plus / Doubao SeedDuplex 等）</td><td>用户正常停顿更少被误接话</td></tr>
+<tr><td>无关语音误接话率（FDB v1.5）</td><td><strong class="hl">2.00%</strong></td><td>68%–88%（GPT Realtime 2.1 / Qwen Audio 3.0 等）</td><td>旁人闲聊 / 设备声极少误触发</td></tr>
+<tr><td>无关打断拒识率（FDB v1.5）</td><td><strong class="hl">68%</strong></td><td>1%–21%</td><td>区分有效打断与无关声音</td></tr>
+<tr><td>附和抗干扰率（τ-Voice）</td><td><strong class="hl">98.17%</strong></td><td>56%–93%</td><td>不被随口附和中断</td></tr>
+<tr><td>打断后回答质量（FDB v1，/5）</td><td><strong class="hl">4.88</strong></td><td>4.51–4.85（最高）</td><td>打断后续接上下文最佳</td></tr>
+<tr><td>工具调用成功率（FDB v3）</td><td><strong class="hl">51%</strong></td><td>33%–51%（与 Doubao 并列最高）</td><td>边聊边做事可靠性</td></tr>
+</table></div>
+<div class="table-wrap"><table><tr><th>维度</th><th>MOSS-Live 优势</th><th>对主干的冲突</th></tr>
+<tr><td>全双工体验</td><td>FDB 基准多项第一，领先 GPT Realtime / 豆包 / Qwen Audio</td><td>现有级联方案最难做好的正是这块（目前近似伪全双工）</td></tr>
+<tr><td>私有化 / 信创</td><td>—</td><td>目前系 API/SaaS 形态，未确认可私有化；电信要求数据不出域、昇腾栈</td></tr>
+<tr><td>可组合 / 可演进</td><td>开箱即用</td><td>端到端黑盒，替换进主干会丧失对各模块的独立控制与演进能力</td></tr>
+<tr><td>数据合规</td><td>—</td><td>用户语音流出域调外部 API，违反电信数据合规</td></tr>
+<tr><td>成本</td><td>限时免费</td><td>千万级调用走外部 API 的商用定价与合规均不确定</td></tr>
+</table></div>
+<p><strong class="hl">架构决策（ADR 风格）：MOSS-Live 不进主干，定位为"基线 + 评估对象"。</strong></p>
+<p><strong class="hl">① 全双工交互能力的验收基线</strong>：把它的 FDB 指标（停顿抢话率、无关误接话率、打断回答质量）设为电信自研"全双工控制层"的验收红线，驱动现有双闸门从伪全双工升级到真全双工。</p>
+<p><strong class="hl">② 可选外采 / 私有化评估对象</strong>：在非核心、合规要求低的对外业务线（如互联网客服演示）作为快速集成选项；并向模思确认是否提供 MOSS-Live 私有化 / 一体机版本，作为"MOSS 全双工套件"（与现有 MOSS-TTS-Nano 兜底形成家族协同）。</p>
+<p><strong class="hl">取舍后果</strong>：保住信创 / 私有化 / 可组合主干，同时借外部标杆拉齐全双工能力差距；风险是若完全不自研，全双工控制层的周期与质量不确定性较高。同源关系反而强化了 MOSS 家族在方案中的一致性——TTS 兜底与全双工系统来自同一可信供应商，便于后续一体化评估<span class="cite">[31]</span>。</p>
 <h3 id="s20">TTS：Qwen3-TTS 主选，CosyVoice 3.0 方言/离线专线，MOSS-Nano 兜底，AuK/VibeVoice 不作生产主用</h3>
 <div class="table-wrap"><table><tr><th>候选</th><th>得分</th><th>推荐</th><th>理由与风险</th></tr><tr><td>Qwen3-TTS（1.7B/0.6B）</td><td>4.8</td><td><strong class="hl">主选（在线）</strong></td><td>开源、dual-track 流式、首包 97 ms<span class="cite">[9]</span>、12Hz tokenizer、方言与音色控制，Apache 2.0。风险：1.7B 首包快但长语音资源占用需压测；低时延强依赖 FlashAttention2，昇腾需算子等价替换</td></tr><tr><td>CosyVoice 3.0（FunAudioLLM 0.5B / RL 版 1.5B）</td><td>4.4</td><td><strong class="hl">方言专线 + 离线预合成</strong></td><td>官方双流口径首包 150 ms、9 语言 + 18 种以上中文方言、支持中文拼音与英文 CMU 音素定点改读而无需重生成整句<span class="cite">[24]</span>，Apache 2.0；官方提供 vLLM 与 TensorRT-LLM 运行时<span class="cite">[23]</span>。在本方案中承接方言客群与固定话术离线渲染。风险：Flow Matching 迭代步数与时延强相关，昇腾需重调步数与精度；与 Qwen3-TTS 音色一致性要额外对齐</td></tr><tr><td>MOSS-TTS-Nano（0.1B）</td><td>4.5</td><td><strong class="hl">兜底</strong></td><td>原生 48 kHz 双声道、纯 CPU 可运行<span class="cite">[8]</span>，作为声卡/NPU 故障兜底。风险：0.1B 音质上限低于大模型，只用于降级</td></tr><tr><td>VibeVoice-Realtime-0.5B</td><td>2.5</td><td><strong class="hl">不主用</strong></td><td>首包约 300 ms、0.5B 轻量，但官方明确仅英文、研究用途、不支持实时语音转换与多语种生产<span class="cite">[10]</span>。风险：合规与语言双红线，仅作技术预研</td></tr><tr><td>AuK 1.5B</td><td>3.0</td><td>离线后处理</td><td>统一语音生成/编辑/增强/分离，支持零样本与指令控制<span class="cite">[11]</span>，但 1.5B 且主打编辑，不适合实时首包场景。风险：被当 TTS 主用会超预算</td></tr></table></div>
 <p><strong class="hl">结论</strong>：Qwen3-TTS 主用于在线实时链路，CosyVoice 3.0 承担方言专线与离线预合成，MOSS-Nano 作纯 CPU 兜底，三者构成 TTS 三引擎高可用；AuK 用于通话后质检/降噪/语音增强；VibeVoice 只进实验室。分工与互切规则按下列 §9.4 拓扑执行。</p>
@@ -643,6 +713,9 @@
 <blockquote><p>"Qwen-Audio-Jev: A Unified Interface for Audio Decisions... augmenting Qwen-Audio-3.1-ASR-Flash-Next with a dedicated Jev decision head... achieves an approximately 20x inference speedup."（阿里巴巴，2026-10-15：CHOICE/NOUL/SCORE 三决策基元，18 项标注配置评估）</p></blockquote>
 <p><span class="cite">[30]</span> <a href="https://mp.weixin.qq.com/s/Cb07n6Gf80G64aoKH3cBig" target="_blank" rel="noopener">https://mp.weixin.qq.com/s/Cb07n6Gf80G64aoKH3cBig</a></p>
 <blockquote><p>智猩猩《阿里把 Jev 用在音频大模型上，推理速度暴涨 20 倍！》（2026-10-22，中文解读，数据与论文一致）</p></blockquote>
+
+<p><span class="cite">[31]</span> <a href="https://www.moss.cn" target="_blank" rel="noopener">https://www.moss.cn</a></p>
+<blockquote><p>MOSS-Live 全双工实时交互系统（模思智能，2026-11）：端到端全双工实时交互，API 接入 platform.moss.cn；与方案内 MOSS-TTS-Nano 同源（OpenMOSS 体系）。</p></blockquote>
 
   <div class="footer">
     中国电信 10000 号私有化信创 AI 语音对话架构方案 · V2 修订版 · 2026-10-13 架构评审修正<br>
