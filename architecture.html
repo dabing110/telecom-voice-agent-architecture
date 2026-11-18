@@ -110,6 +110,7 @@
 <li class="toc-h3"><a href="#s19b2">决策头上车：Qwen-Audio-Jev 对决策路由层的意义</a></li>
 <li class="toc-h3"><a href="#s19c">闭源商用 API 的边界：Grok Voice 3.0 一类不入选</a></li>
 <li class="toc-h3"><a href="#s19d">全双工交互系统对标：MOSS-Live（模思）不进主干</a></li>
+<li class="toc-h3"><a href="#s19e">开源全双工权重基线：Sophon-Realtime v1 不进主干</a></li>
 <li class="toc-h3"><a href="#s20">TTS：Qwen3-TTS 主选，CosyVoice 3.0 方言/离线专线，MOSS-Nano 兜底，AuK/VibeVoice 不作生产主用</a></li>
 <li class="toc-h3"><a href="#s21">TTS 三引擎落地拓扑：在线主链路 / 方言专线 / 离线预合成 / CPU 兜底</a></li>
 <li class="toc-h3"><a href="#s21b">TTS 风格控制接口：结构化控制量（z-score 范式）</a></li>
@@ -331,6 +332,7 @@
 <p><strong class="hl">模型层容量不按会话并发全量计，而按"占空比"折算——一路 90 秒通话里，各模型真正在烧算力的时间占比远小于 1。</strong> 基准假设：单通 90 秒、约 6 轮对话；用户说话合计约 30 秒（33%）；LLM 生成合计约 15 秒（每轮约 2.5 秒，17%）；AI 播报合计约 45 秒（50%），TTS 算力占用 = 播报时长 × RTF（≈0.3）。</p>
 <div class="table-wrap"><table><tr><th>模型层</th><th>并发折算公式</th><th>峰值并发（架构估算）</th></tr><tr><td>ASR</td><td>7365 × 说话占比 33%</td><td>≈ 2430 路</td></tr><tr><td>LLM（合计）</td><td>7365 × 生成占比 17%</td><td>≈ 1252 并发</td></tr><tr><td>├ 小模型 40%</td><td>1252 × 40%</td><td>≈ 501 并发</td></tr><tr><td>├ 中模型 50%</td><td>1252 × 50%</td><td>≈ 626 并发</td></tr><tr><td>└ 大模型 10%</td><td>1252 × 10%</td><td>≈ 125 并发</td></tr><tr><td>TTS</td><td>7365 × 播报占比 50% × RTF 0.3</td><td>≈ 1105 并发流</td></tr></table></div>
 <p>接入网关与媒体网关按会话并发全量计（7365 × 1.5 = 11048 路），模型层按上表折算。占空比假设（6 轮、各段时长、RTF）须在 POC 用真实通话回灌标定——这是全部卡数推导的地基。</p>
+<p><strong class="hl">反例校验：端到端全双工拿不到这份占空比红利。</strong> 上表是级联方案资源量级成立的地基——各模型按说话/生成/播报占空比折算，模型并发远小于会话并发。端到端全双工模型（如 Sophon-Realtime v1、MOSS-Live）是边听边说、主干全程在线，占空比 ≈ 1：若把峰值会话整体换成全双工模型，模型并发即等于会话并发全量，按单卡 40 路（官方建议上限、且要求"10 秒内陆续到达"非齐发）所需卡数为级联方案的数倍，且是 NVIDIA 栈而非昇腾。官方并发实测进一步显示 40 路时 P90 首音已 0.67s、64 路播放停顿 1.90s，撞穿既定端到端时延死线。<strong class="hl">结论：占空比是级联架构的结构性红利，端到端全双工在同等并发与信创约束下不具备规模经济性；这一条是"不选端到端主干"的量化依据，而非体验偏好。</strong><span class="cite">[32]</span><span class="cite">[33]</span></p>
 <h3 id="s9">100 万 DAU 基线资源表</h3>
 <div class="table-wrap"><table><tr><th>组件</th><th>容量假设</th><th>单实例规格</th><th>说明</th></tr><tr><td>接入网关（SBC/WSS）</td><td>750 QPS 等效会话</td><td>8C16G 鲲鹏</td><td>无状态，2N+2 冗余</td></tr><tr><td>媒体网关</td><td>峰值 7365 路 × 1.5 冗余 = 11048 路</td><td>16C32G 鲲鹏 + 1×NPU（可选）</td><td>AEC/降噪吃 CPU，ARM NEON 优化</td></tr><tr><td>ASR（FunASR Paraformer-streaming INT8）</td><td>峰值约 2430 路并发（说话占空比 33%），GPU RTF 0.01</td><td>1×昇腾 910B / 32 路</td><td>常态鲲鹏 CPU 5 台 32C（640 路/台）；峰谷切昇腾 20 卡卸载 640 路</td></tr><tr><td>LLM 小模型（Qwen3-4B/7B 类，意图与兜底）</td><td>LLM 总并发约 1252 × 40% ≈ 501 并发</td><td>1×昇腾 910B / 64 并发</td><td>INT4/INT8 量化，prefix cache</td></tr><tr><td>LLM 中模型（Qwen3-14B/32B，主答）</td><td>LLM 总并发 × 50% ≈ 626 并发</td><td>1×昇腾 910B / 60 并发（14B 基线）</td><td>主算力消费者；32B 备选口径见本节推导</td></tr><tr><td>LLM 大模型/星辰（复杂推理，10%）</td><td>LLM 总并发 × 10% ≈ 125 并发</td><td>2×910B（TP=2）/ 16 并发</td><td>仅疑难/工单复杂场景</td></tr><tr><td>TTS（Qwen3-TTS 1.7B）</td><td>峰值约 1105 并发流（播报占空比 × RTF）</td><td>1×昇腾 910B / 128 流</td><td>常态与峰值混部，0.6B/1.7B 按音色分档</td></tr><tr><td>TTS 兜底（MOSS-TTS-Nano 0.1B）</td><td>10% 流量降级</td><td>16C32G 鲲鹏 / 200 路</td><td>纯 CPU，48 kHz 双声道</td></tr><tr><td>TTS 方言/离线专线（CosyVoice 3.0 0.5B）</td><td>10% 方言流量 + 全部预合成任务</td><td>1×昇腾 910B / 96 流 或鲲鹏 32C</td><td>18+ 中文方言、拼音/音素定点改读<span class="cite">[24]</span>；固定话术离线渲染，命中即播</td></tr><tr><td>Redis 集群（国产化）</td><td>会话 11048 × 256KB ≈ 2.8 GB 热数据</td><td>3 主 3 从</td><td>会话上下文、限流计数</td></tr><tr><td>Kafka</td><td>峰值 1.1 万 msg/s，留存 24h</td><td>3 broker 跨 3 AZ</td><td>通话事件、审计、工单异步</td></tr><tr><td>向量库</td><td>知识条目 500 万 × 1536 维</td><td>3 分片 2 副本</td><td>工单/FAQ 检索</td></tr><tr><td>达梦 DM8</td><td>OLTP 165 万写/日 + 工单</td><td>主备 + 异地</td><td>等保四级、国密、三权分立</td></tr></table></div>
 <p><strong class="hl">ASR 资源推导</strong>：FunASR 流式 Paraformer 官方口径为 GPU 下推理效率提升约 10 倍、可支持上百路并发<span class="cite">[3]</span>；架构估算取 1 张昇腾 910B 承载 32 路实时 ASR（RTF≈0.01，留 3 倍安全余量）。峰值约 2430 路并发若全量 NPU 需数十卡量级，成本不可接受，故采用<strong class="hl">CPU 常态 + NPU 峰谷弹性</strong>：鲲鹏 32C 实例按 RTF 0.05 计单实例可承载约 640 路，常态数实例即可，按 25% 冗余部署；峰期叠加少量昇腾卡卸载数百路突发流量（承接突发与 CPU 池抖动）。<strong class="hl">峰谷切换不迁移存量会话</strong>：新会话路由到 NPU 池，旧会话在 CPU 池自然消退。这一取舍是本方案最关键的 TCO 决策。</p>
@@ -600,6 +602,80 @@
 <p><strong class="hl">① 全双工交互能力的验收基线</strong>：把它的 FDB 指标（停顿抢话率、无关误接话率、打断回答质量）设为电信自研"全双工控制层"的验收红线，驱动现有双闸门从伪全双工升级到真全双工。</p>
 <p><strong class="hl">② 可选外采 / 私有化评估对象</strong>：在非核心、合规要求低的对外业务线（如互联网客服演示）作为快速集成选项；并向模思确认是否提供 MOSS-Live 私有化 / 一体机版本，作为"MOSS 全双工套件"（与现有 MOSS-TTS-Nano 兜底形成家族协同）。</p>
 <p><strong class="hl">取舍后果</strong>：保住信创 / 私有化 / 可组合主干，同时借外部标杆拉齐全双工能力差距；风险是若完全不自研，全双工控制层的周期与质量不确定性较高。同源关系反而强化了 MOSS 家族在方案中的一致性——TTS 兜底与全双工系统来自同一可信供应商，便于后续一体化评估<span class="cite">[31]</span>。</p>
+<h3 id="s19e">开源全双工权重基线：Sophon-Realtime v1 不进主干，作可私有化实测基线 + 协议兼容评估对象</h3>
+<p>Sophon-Realtime v1（智子实时语音，AI 降临派 / Adventists AI，2026-11-08 开源）是目前唯一同时满足"全双工端到端 + Apache-2.0 权重可商用 + 私有化部署"的公开模型<span class="cite">[32]</span><span class="cite">[33]</span>。它与 MOSS-Live 处在<strong class="hl">同一能力层</strong>（端到端全双工交互系统），但把 MOSS-Live 当时被否决的"数据出域"与"不可私有化"两条红线<strong class="hl">解掉了</strong>——代价是引入一条新的硬约束：<strong class="hl">纯 NVIDIA 栈</strong>。</p>
+<p><strong class="hl">事实核实（口播文案与官方仓库的差异）</strong>：口播提到的两个接口、声音标签、微调参数、显存需求方向正确，但需按官方仓库<span class="cite">[32]</span><span class="cite">[33]</span>校正六处：① 实为<strong class="hl">三个</strong>接口——<code>ws /v1/realtime</code>（全双工：话轮/打断/附和）、<code>POST /v1/chat/completions</code>（语音进/文字+语音流出）、以及 <strong class="hl">GPT-Live 兼容 Live 网关</strong>（语音前端 + 自有后端 LLM），漏掉的第三个恰是电信最需要的对接方式；② 声音标签不是"提示词末尾一句提示"，而是大脑生成回复时同步写入 <code>[laughter]/[sigh]/[cough]</code> 与重读标记，声码器只"演"不"念"，标签不进文本流；③ 微调参数是 <code>--adapters tag_swift</code>，且 <code>tag_swift</code> 是 <code>sophon_swift.adapters to-swift</code> 转出的<strong class="hl">本地适配器目录名</strong>，不是官方参数名；④ 冻结参数是 <code>--freeze_vit true --freeze_aligner true</code>（带下划线、带值）；⑤ 口播给出的微调显存数字不是推理需求——推理需单张 80GB 级卡，首次启动编译 TRT 引擎 15–20 分钟；⑥ 口播未提及 Apache-2.0 可商用、32B 大脑三构建（Tag/Flash/E2E）、TensorRT 必需（否则负载下慢约 3×）、并发退化与官方自测口径。<strong class="hl">最危险的误读</strong>：微调显存看似"刚好配得上 64GB HBM 的国产卡"，实际它要求 Linux + CUDA 13 + TensorRT + vLLM-Omni，国产卡跑不了。</p>
+<p><strong class="hl">架构定位（三方对比）</strong>：</p>
+<div style="margin:14px 0;text-align:center"><svg viewBox="0 0 680 420" xmlns="http://www.w3.org/2000/svg" font-family="'Segoe UI',-apple-system,'Microsoft YaHei',sans-serif">
+  <rect x="0" y="0" width="680" height="420" fill="#ffffff"/>
+  <text x="24" y="28" font-size="16" font-weight="700" fill="#1f2a44">Sophon-Realtime v1 在电信语音架构中的三方层级定位</text>
+  <text x="24" y="48" font-size="11.5" fill="#64748b">同为全双工能力层，交付形态与信创栈决定去留</text>
+
+  <rect x="20" y="66" width="204" height="238" rx="10" fill="#fff7ed" stroke="#f59e0b" stroke-width="1.5" stroke-dasharray="6 4"/>
+  <text x="34" y="88" font-size="13" font-weight="700" fill="#b45309">MOSS-Live（模思）</text>
+  <text x="34" y="106" font-size="10.5" fill="#92400e">闭源 API / SaaS · 2026-11</text>
+  <line x1="34" y1="116" x2="210" y2="116" stroke="#fcd34d" stroke-width="1"/>
+  <text x="34" y="137" font-size="11" fill="#7c2d12">✗ 数据出域</text>
+  <text x="34" y="157" font-size="11" fill="#7c2d12">✗ 不可私有化</text>
+  <text x="34" y="177" font-size="11" fill="#7c2d12">✗ 信创不适用</text>
+  <text x="34" y="197" font-size="11" fill="#15803d">✓ FDB 多项第一</text>
+  <line x1="34" y1="212" x2="210" y2="212" stroke="#fcd34d" stroke-width="1"/>
+  <text x="34" y="232" font-size="10.5" font-weight="700" fill="#b45309">定位：能力参照物</text>
+  <text x="34" y="250" font-size="10" fill="#78716c">闭源体验基线，不接生产</text>
+  <text x="34" y="272" font-size="10" fill="#78716c">待确认私有化版</text>
+
+  <rect x="238" y="66" width="204" height="238" rx="10" fill="#eff6ff" stroke="#3b82f6" stroke-width="1.5"/>
+  <text x="252" y="88" font-size="13" font-weight="700" fill="#1d4ed8">Sophon-Realtime v1</text>
+  <text x="252" y="106" font-size="10.5" fill="#1e40af">Apache-2.0 权重 · 2026-11</text>
+  <line x1="252" y1="116" x2="428" y2="116" stroke="#93c5fd" stroke-width="1"/>
+  <text x="252" y="137" font-size="11" fill="#1e3a8a">✓ 数据不出域</text>
+  <text x="252" y="157" font-size="11" fill="#1e3a8a">✓ 可私有化</text>
+  <text x="252" y="177" font-size="11" fill="#b91c1c">✗ CUDA13+TRT+80GB NVIDIA</text>
+  <text x="252" y="197" font-size="11" fill="#b91c1c">✗ 占空比≈1（红利不可得）</text>
+  <line x1="252" y1="212" x2="428" y2="212" stroke="#93c5fd" stroke-width="1"/>
+  <text x="252" y="232" font-size="10.5" font-weight="700" fill="#1d4ed8">定位：实测基线 + A/B 支路</text>
+  <text x="252" y="250" font-size="10" fill="#475569">可私有化、可复现、可拉曲线</text>
+  <text x="252" y="272" font-size="10" fill="#475569">旁挂可撤回，主干零改动</text>
+
+  <rect x="456" y="66" width="204" height="238" rx="10" fill="#f0fdf4" stroke="#22c55e" stroke-width="1.5"/>
+  <text x="470" y="88" font-size="13" font-weight="700" fill="#15803d">级联主干（现方案）</text>
+  <text x="470" y="106" font-size="10.5" fill="#166534">可拼装零件箱 · Pipecat</text>
+  <line x1="470" y1="116" x2="646" y2="116" stroke="#86efac" stroke-width="1"/>
+  <text x="470" y="137" font-size="11" fill="#14532d">✓ 全栈信创私有化</text>
+  <text x="470" y="157" font-size="11" fill="#14532d">✓ 可观测 / 可降级</text>
+  <text x="470" y="177" font-size="11" fill="#14532d">✓ 占空比红利（卡数量级优）</text>
+  <text x="470" y="197" font-size="11" fill="#b45309">△ 全双工为伪实现</text>
+  <line x1="470" y1="212" x2="646" y2="212" stroke="#86efac" stroke-width="1"/>
+  <text x="470" y="232" font-size="10.5" font-weight="700" fill="#15803d">定位：生产主链路</text>
+  <text x="470" y="250" font-size="10" fill="#475569">双闸门 + 反向取消近似</text>
+  <text x="470" y="272" font-size="10" fill="#475569">以基线 SLO 驱动升级</text>
+
+  <rect x="20" y="322" width="640" height="74" rx="10" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1.2"/>
+  <text x="36" y="345" font-size="11" font-weight="700" fill="#334155">共同约束：端到端全双工不替换主干；Sophon 提供可复现实测基线，MOSS 提供体验红线</text>
+  <text x="36" y="367" font-size="10.5" fill="#475569">可逆性：旁挂 A/B 支路随时撤回 · 治理：音色克隆默认关闭 + 授权留痕</text>
+  <text x="36" y="386" font-size="9.5" fill="#94a3b8">口径说明：指标为官方自测；三方均须以自有语料 POC 复测后定论</text>
+</svg></div>
+<div class="table-wrap"><table>
+<tr><th>维度</th><th>级联主干（现方案）</th><th>MOSS-Live（模思）</th><th>Sophon-Realtime v1</th></tr>
+</table></div>
+<p>|---|---|---|---|</p>
+<div class="table-wrap"><table>
+<tr><td>交付形态</td><td>可拼装零件箱</td><td>闭源 API / SaaS</td><td>Apache-2.0 代码 + 权重</td></tr>
+<tr><td>数据不出域</td><td>满足：全栈私有化</td><td>不满足：出域</td><td>满足：可私有化</td></tr>
+<tr><td>信创栈</td><td>满足：昇腾/鲲鹏/达梦</td><td>不适用</td><td>不满足：CUDA 13 + TensorRT + 80GB NVIDIA</td></tr>
+<tr><td>可组合/可演进</td><td>满足：各模块独立</td><td>不满足：端到端黑盒</td><td>部分：兼容 Pipecat/LiveKit/OpenAI Realtime/GPT-Live，但 32B 大脑黑盒、微调仅动 LLM 主干 LoRA</td></tr>
+<tr><td>全双工体验</td><td>伪全双工（VAD+双闸门+反向取消）</td><td>FDB 多项第一</td><td>VoiceBench 82.8、Big Bench Audio 81.8%、工具调用 Pass@1 48%</td></tr>
+<tr><td>成熟度</td><td>架构估算待 POC</td><td>未确认私有化版</td><td>11-04 建仓、6 天 9 个 release、322 星/2 贡献者，官方自测为主</td></tr>
+</table></div>
+<p><strong class="hl">关键否决论据：占空比红利不可得</strong>（详见 §"会话并发 → 模型并发换算"回写）。级联按占空比把峰值会话折算为远小于会话数的模型并发；端到端全双工是边听边说、32B 全程在线，占空比 ≈ 1，模型并发等于会话并发全量。按 Flash 单卡 40 路（官方建议上限）计，所需卡数为级联方案的数倍，且为 NVIDIA 栈（非昇腾）。更致命的是并发退化：官方实测 Flash 1 路首音中位 0.31s → 40 路 0.58s（P90 0.67s）→ 64 路 0.84s（P90 1.03s）、播放停顿 1.90s；且 40 路前提是"10 秒内陆续到达"而非齐发，真实峰值齐发会直接退到排队档，撞穿既定端到端时延死线。</p>
+<p><strong class="hl">治理门禁（新增红线）</strong>：v1.1 起支持零样本音色克隆（3–10 秒录音、免微调免重启）。声纹属生物识别个人信息，Post-Guardrail 须增加"音色来源授权留痕 + 克隆能力默认关闭"，仅本人或已书面授权音色可入白名单；禁止仿冒名人、冒充他人、诈骗配音。这一条款已并入风险清单。</p>
+<p><strong class="hl">成熟度与口径风险（POC 前不写进承诺）</strong>：① 11-04 建仓 → 11-08 v1.0 → 11-14 v1.3.0，6 天 9 个 release，仓库 322 星 / 2 位贡献者，接口与规格仍在快速变动，须锁定版本；② 指标均为厂商自跑（Big Bench Audio 用 gpt-4.1 判分、工具调用用 GPT-4o 判分、声音标签用 Gemini 3 Flash 判分），AA 榜截至 11-11 无 Sophon 行；③ VoiceBench 82.8 的准确含义是"追平 GPT-4o-mini-Audio"，落后 GPT-4o-Audio 86.8，开源组第二 MiniCPM-o 4.5 为 76.1；④ 模型页自身 Big Bench Audio 有 81.8 与 81.2→83 两处不一致；⑤ 副语言理解 48.6 高于 Gemini 3.8 Flash 46.9 / Qwen3-Omni 44.6，是唯一赢闭源的项，值得作为自研全双工控制层的验收基线。</p>
+<p><strong class="hl">信创备选</strong>：MiniCPM-o 4.5（9B、Apache-2.0、INT4 量化 11–12GB 显存、已适配昇腾/海光）比 Sophon 更贴信创红线，可列季度复评待评估；但 VoiceBench 76.1 且无电信级并发数据，不能直接替换主干。</p>
+<p><strong class="hl">架构决策（ADR 风格）：Sophon-Realtime v1 不进主干，定位为"可私有化全双工基线 + 协议兼容评估对象"。</strong></p>
+<p>1. <strong class="hl">全双工验收基线升级</strong>：MOSS-Live 那节的"待确认私有化版本"改由 Sophon 承担——它是可私有化、可复现、可拉真实并发曲线的开源基线。把其公开的"并发—首音 P90 退化曲线"设为电信自研全双工控制层的 SLO 红线（40 路以内、P90 首音 ≤ 0.67s、播放停顿 < 0.5s），并作为旁挂 A/B 支路的体验对照。</p>
+<p>2. <strong class="hl">协议兼容评估对象</strong>：其 Pipecat / LiveKit / OpenAI Realtime / GPT-Live 兼容性与方案主干 Pipecat 同源，可在非生产环境旁挂一条 Sophon 支路做全双工体验 A/B，工程成本低、可随时撤回（可逆性原则）。Live 网关的"语音前端 + 自有后端 LLM"形态，可映射到本方案"私有大模型"的后端分工。</p>
+<p>3. <strong class="hl">不进生产主干的三条理由</strong>：信创栈硬冲突（CUDA 13 + TensorRT + 80GB NVIDIA vs 昇腾/鲲鹏）；占空比红利不可得导致卡数数量级不匹配；仓库成熟度为"新项目快迭代"，不满足电信级稳定供应。</p>
+<p><strong class="hl">取舍后果</strong>：保住信创 / 可观测 / 可降级的级联主干，同时把全双工验收基线从"闭源不可复现"升级为"开源可私有化可实测"；风险是自研全双工控制层的周期与质量仍需 POC 验证，Sophon 只提供参照物不提供交付能力<span class="cite">[32]</span><span class="cite">[33]</span><span class="cite">[34]</span>。</p>
 <h3 id="s20">TTS：Qwen3-TTS 主选，CosyVoice 3.0 方言/离线专线，MOSS-Nano 兜底，AuK/VibeVoice 不作生产主用</h3>
 <div class="table-wrap"><table><tr><th>候选</th><th>得分</th><th>推荐</th><th>理由与风险</th></tr><tr><td>Qwen3-TTS（1.7B/0.6B）</td><td>4.8</td><td><strong class="hl">主选（在线）</strong></td><td>开源、dual-track 流式、首包 97 ms<span class="cite">[9]</span>、12Hz tokenizer、方言与音色控制，Apache 2.0。风险：1.7B 首包快但长语音资源占用需压测；低时延强依赖 FlashAttention2，昇腾需算子等价替换</td></tr><tr><td>CosyVoice 3.0（FunAudioLLM 0.5B / RL 版 1.5B）</td><td>4.4</td><td><strong class="hl">方言专线 + 离线预合成</strong></td><td>官方双流口径首包 150 ms、9 语言 + 18 种以上中文方言、支持中文拼音与英文 CMU 音素定点改读而无需重生成整句<span class="cite">[24]</span>，Apache 2.0；官方提供 vLLM 与 TensorRT-LLM 运行时<span class="cite">[23]</span>。在本方案中承接方言客群与固定话术离线渲染。风险：Flow Matching 迭代步数与时延强相关，昇腾需重调步数与精度；与 Qwen3-TTS 音色一致性要额外对齐</td></tr><tr><td>MOSS-TTS-Nano（0.1B）</td><td>4.5</td><td><strong class="hl">兜底</strong></td><td>原生 48 kHz 双声道、纯 CPU 可运行<span class="cite">[8]</span>，作为声卡/NPU 故障兜底。风险：0.1B 音质上限低于大模型，只用于降级</td></tr><tr><td>VibeVoice-Realtime-0.5B</td><td>2.5</td><td><strong class="hl">不主用</strong></td><td>首包约 300 ms、0.5B 轻量，但官方明确仅英文、研究用途、不支持实时语音转换与多语种生产<span class="cite">[10]</span>。风险：合规与语言双红线，仅作技术预研</td></tr><tr><td>AuK 1.5B</td><td>3.0</td><td>离线后处理</td><td>统一语音生成/编辑/增强/分离，支持零样本与指令控制<span class="cite">[11]</span>，但 1.5B 且主打编辑，不适合实时首包场景。风险：被当 TTS 主用会超预算</td></tr></table></div>
 <p><strong class="hl">结论</strong>：Qwen3-TTS 主用于在线实时链路，CosyVoice 3.0 承担方言专线与离线预合成，MOSS-Nano 作纯 CPU 兜底，三者构成 TTS 三引擎高可用；AuK 用于通话后质检/降噪/语音增强；VibeVoice 只进实验室。分工与互切规则按下列 §9.4 拓扑执行。</p>
@@ -642,7 +718,8 @@
 <h2 id="s28">11. 成本估算（TCO）</h2>
 <p><strong class="hl">成本模型方法论：按 100 万 DAU 基线、当年价格水平，将年度成本分为服务器 capex（按 5 年摊销）、软件与授权、人力、安全与测评等类别加总得年度 TCO，再按年通话量折算单通成本，并与人工坐席单通成本（3–8 元量级）对比，评估 AI 自助替代的收益空间。</strong>具体金额涉及商务口径，开源版从略。</p>
 <h2 id="s29">12. 风险清单与应对</h2>
-<div class="table-wrap"><table><tr><th>风险</th><th>等级</th><th>影响</th><th>应对措施</th></tr><tr><td>模型幻觉（金额/套餐/政策答错）</td><td>高</td><td>用户投诉、资损</td><td>事实类带 sourceId 与 CRM 一致性校验、RAG 取原文、超域转人工、输出双通道</td></tr><tr><td>方言与噪声识别不准</td><td>高</td><td>转人工率上升</td><td>复用星辰 40+ 方言能力、2-pass 流式+离线重识、按省分引擎、badcase 回流热词</td></tr><tr><td>端到端延迟抖动超 1.5 s</td><td>高</td><td>用户体验崩塌</td><td>流式重叠、prefix cache、投机解码、两档降级、L1 先播提示句</td></tr><tr><td>昇腾卡供给与 CANN 适配进度</td><td>高</td><td>交付延期</td><td>海光 DCU 备选、锁版本矩阵、算子白名单、POC 先跑算子兼容</td></tr><tr><td>声纹克隆/深度伪造</td><td>高</td><td>身份冒用、欺诈</td><td>声纹只用于说话人锁定不做认证、TTS 音色白名单、禁止实时变声、AI 生成标识</td></tr><tr><td>数据出域</td><td>高</td><td>合规一票否决</td><td>全栈私有化、数据流向审计、对外只出脱敏摘要、备案完备</td></tr><tr><td>等保测评不通过</td><td>中</td><td>无法上线</td><td>达梦等保四级底座<span class="cite">[15]</span>、国密、三员分权、WORM 审计、提前 6 个月启动测评</td></tr><tr><td>全双工端到端模型供应链不稳</td><td>中</td><td>技术路线受阻</td><td>级联方案作主链路，端到端模型仅研究跟踪，不绑定交付</td></tr><tr><td>ax 等声明式框架 API 破坏性变更</td><td>中</td><td>重构成本</td><td>不引入生产，只吸收设计思想，自研状态机</td></tr><tr><td>工单工具非幂等导致重复办理</td><td>高</td><td>资损</td><td>读多写少、写操作需授权码、Saga 补偿、状态机幂等键</td></tr><tr><td>Qwen3-TTS 低时延依赖 FlashAttention2，昇腾无对应算子</td><td>中</td><td>首包退化至 0.3 倍实时，TTS 反成瓶颈</td><td>POC 先跑注意力算子等价替换与精度回归；不达标回退 0.6B 以并发换时延；CosyVoice 在线副本作互切备份</td></tr><tr><td>多 TTS 引擎音色不一致</td><td>中</td><td>品牌音色漂移、用户感知割裂</td><td>统一参考音频与音色白名单、每季度 MOS 对齐评测、同一 callId 内禁止跨引擎切换音色</td></tr><tr><td>突发流量超 30 秒扩容窗口</td><td>中</td><td>服务雪崩</td><td>预测扩容 + 缓冲队列 + 三档降级 + 部分转人工</td></tr><tr><td>GPU/NPU 单卡故障导致会话中断</td><td>中</td><td>通话掉线</td><td>多副本无状态、会话 2 秒 checkpoint、切流 5 分钟内完成</td></tr><tr><td>多 Region 数据一致性</td><td>中</td><td>上下文丢失</td><td>会话钉死单 Region、跨 Region 只迁整片、状态异步对账</td></tr><tr><td>运营商入网互联互通测试周期</td><td>中</td><td>SIP 割接延期（入网测试通常 3–6 个月）</td><td>试点期即启动入网测试申请，SIP 先做镜像不切量，里程碑预留缓冲</td></tr><tr><td>SBC 商用 License 按并发路数计费</td><td>中</td><td>License 年费易被低估</td><td>POC 阶段向 2 家以上 SBC 厂商询价，按实际并发路数纳入成本估算</td></tr></table></div>
+<div class="table-wrap"><table><tr><th>风险</th><th>等级</th><th>影响</th><th>应对措施</th></tr><tr><td>模型幻觉（金额/套餐/政策答错）</td><td>高</td><td>用户投诉、资损</td><td>事实类带 sourceId 与 CRM 一致性校验、RAG 取原文、超域转人工、输出双通道</td></tr><tr><td>方言与噪声识别不准</td><td>高</td><td>转人工率上升</td><td>复用星辰 40+ 方言能力、2-pass 流式+离线重识、按省分引擎、badcase 回流热词</td></tr><tr><td>端到端延迟抖动超 1.5 s</td><td>高</td><td>用户体验崩塌</td><td>流式重叠、prefix cache、投机解码、两档降级、L1 先播提示句</td></tr><tr><td>昇腾卡供给与 CANN 适配进度</td><td>高</td><td>交付延期</td><td>海光 DCU 备选、锁版本矩阵、算子白名单、POC 先跑算子兼容</td></tr><tr><td>声纹克隆/深度伪造</td><td>高</td><td>身份冒用、欺诈</td><td>声纹只用于说话人锁定不做认证、TTS 音色白名单、禁止实时变声、AI 生成标识</td></tr>
+<tr><td>零样本音色克隆被滥用（开源全双工模型 v1.1+ 能力）</td><td>高</td><td>仿冒他人、电信诈骗、合规一票否决</td><td>克隆能力默认关闭；音色来源须本人或书面授权并留痕；仅白名单音色可入生产；输出强制 AI 生成标识；禁止仿冒名人与实时变声<span class="cite">[33]</span></td></tr><tr><td>数据出域</td><td>高</td><td>合规一票否决</td><td>全栈私有化、数据流向审计、对外只出脱敏摘要、备案完备</td></tr><tr><td>等保测评不通过</td><td>中</td><td>无法上线</td><td>达梦等保四级底座<span class="cite">[15]</span>、国密、三员分权、WORM 审计、提前 6 个月启动测评</td></tr><tr><td>全双工端到端模型供应链不稳</td><td>中</td><td>技术路线受阻</td><td>级联方案作主链路，端到端模型仅研究跟踪，不绑定交付</td></tr><tr><td>ax 等声明式框架 API 破坏性变更</td><td>中</td><td>重构成本</td><td>不引入生产，只吸收设计思想，自研状态机</td></tr><tr><td>工单工具非幂等导致重复办理</td><td>高</td><td>资损</td><td>读多写少、写操作需授权码、Saga 补偿、状态机幂等键</td></tr><tr><td>Qwen3-TTS 低时延依赖 FlashAttention2，昇腾无对应算子</td><td>中</td><td>首包退化至 0.3 倍实时，TTS 反成瓶颈</td><td>POC 先跑注意力算子等价替换与精度回归；不达标回退 0.6B 以并发换时延；CosyVoice 在线副本作互切备份</td></tr><tr><td>多 TTS 引擎音色不一致</td><td>中</td><td>品牌音色漂移、用户感知割裂</td><td>统一参考音频与音色白名单、每季度 MOS 对齐评测、同一 callId 内禁止跨引擎切换音色</td></tr><tr><td>突发流量超 30 秒扩容窗口</td><td>中</td><td>服务雪崩</td><td>预测扩容 + 缓冲队列 + 三档降级 + 部分转人工</td></tr><tr><td>GPU/NPU 单卡故障导致会话中断</td><td>中</td><td>通话掉线</td><td>多副本无状态、会话 2 秒 checkpoint、切流 5 分钟内完成</td></tr><tr><td>多 Region 数据一致性</td><td>中</td><td>上下文丢失</td><td>会话钉死单 Region、跨 Region 只迁整片、状态异步对账</td></tr><tr><td>运营商入网互联互通测试周期</td><td>中</td><td>SIP 割接延期（入网测试通常 3–6 个月）</td><td>试点期即启动入网测试申请，SIP 先做镜像不切量，里程碑预留缓冲</td></tr><tr><td>SBC 商用 License 按并发路数计费</td><td>中</td><td>License 年费易被低估</td><td>POC 阶段向 2 家以上 SBC 厂商询价，按实际并发路数纳入成本估算</td></tr></table></div>
 <p><strong class="hl">诚实边界</strong>：① 所有吞吐与容量均为架构估算，未做真实电信语料回灌，实际可能偏差 ±40%；② 昇腾 CANN 与 vLLM-Ascend 的量化、投机解码在最新版本仍有已知问题（如 PD 分离可能内存泄漏、Aclgraph 与 DP/EP 不兼容）<span class="cite">[16]</span>，生产灰度必须逐个特性开关验证；③ Qwen3-TTS、MOSS-Nano 的开源许可与商用条款需法务逐项确认，不能仅凭"开源"推定可商用。</p>
 <h2 id="s30">13. 一页纸摘要</h2>
 <p><strong class="hl">架构一句话</strong>：百万 DAU 下用"Pipecat frame 级流式编排 + FunASR + Qwen3-TTS/CosyVoice3 TTS 三引擎 + 私有 Qwen3 分层推理 + 自研决策路由"，在信创全栈私有化环境中，把 P95 端到端延迟压到 1.5 秒以内。</p>
@@ -716,6 +793,13 @@
 
 <p><span class="cite">[31]</span> <a href="https://www.moss.cn" target="_blank" rel="noopener">https://www.moss.cn</a></p>
 <blockquote><p>MOSS-Live 全双工实时交互系统（模思智能，2026-11）：端到端全双工实时交互，API 接入 platform.moss.cn；与方案内 MOSS-TTS-Nano 同源（OpenMOSS 体系）。</p></blockquote>
+
+<p><span class="cite">[32]</span> <a href="https://www.modelscope.cn/models/AdventistsAI/Sophon-Realtime-v1" target="_blank" rel="noopener">https://www.modelscope.cn/models/AdventistsAI/Sophon-Realtime-v1</a></p>
+<blockquote><p>Sophon-Realtime v1 系列主页（Adventists AI / AI 降临派，2026-11-08 开源）：共享 32B 大脑，Tag / Flash / E2E 三构建；代码与权重 Apache-2.0 可商用；ws /v1/realtime 全双工 + /v1/chat/completions + GPT-Live 网关；副语言标签（笑声/叹气/咳嗽/重读）。</p></blockquote>
+<p><span class="cite">[33]</span> <a href="https://github.com/adventists-ai/sophon-realtime" target="_blank" rel="noopener">https://github.com/adventists-ai/sophon-realtime</a></p>
+<blockquote><p>官方仓库（2026-11-04 建仓）：部署脚本 vLLM-Omni + TensorRT（[trt] 必需），finetune/ 目录含 ms-swift LoRA 微调（--adapters tag_swift、--freeze_vit true、--freeze_aligner true，单卡峰值约 65GB，两卡自动切分各约 34GB）；官方并发实测与模型卡口径以仓库为准。</p></blockquote>
+<p><span class="cite">[34]</span> <a href="https://mp.weixin.qq.com/s?__biz=MzYzMTIzNzI3Mg==&mid=2247486746&idx=2&sn=eb09685d2bf28146730840240f0cf2fa" target="_blank" rel="noopener">https://mp.weixin.qq.com/s?__biz=MzYzMTIzNzI3Mg==&mid=2247486746&idx=2&sn=eb09685d2bf28146730840240f0cf2fa</a></p>
+<blockquote><p>第三方核账稿《Sophon-Realtime v1 核账：82.8 分靠脑子，换嗓子只剩 0.63》（2026-11）：指出 VoiceBench 82.8 实为追平 GPT-4o-mini-Audio、Big Bench Audio 81.8% 为厂商自跑、AA 榜尚无 Sophon、模型页两处数字不一致、并发 40 路 P90 0.67s / 64 路停顿 1.90s。用于交叉校验，非官方口径。</p></blockquote>
 
   <div class="footer">
     中国电信 10000 号私有化信创 AI 语音对话架构方案 · V2 修订版 · 2026-10-13 架构评审修正<br>
